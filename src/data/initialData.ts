@@ -21,7 +21,7 @@ const getRelativeDate = (daysOffset: number): string => {
 export const INITIAL_SETTINGS: StoreSettings = {
   storeName: 'TIENDA CASA MANJARREZ',
   tagline: 'Tu tienda de confianza con los mejores productos',
-  address: 'ZARAGOZA 1 #450, Col. Centro',
+  address: 'ZARAGOZA 1 , Col. Centro',
   phone: '243-127-82-53 O 243-43-1-66-60',
   email: '',
   taxId: '',
