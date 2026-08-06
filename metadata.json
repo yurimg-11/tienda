@@ -1,0 +1,8 @@
+{
+  "name": "Control de Inventario y Caja POS",
+  "description": "Sistema de gestión de inventario por categorías con alertas de caducidad, punto de venta, tickets digitales, reportes de ventas y ganancias diarias.",
+  "requestFramePermissions": [
+    "camera"
+  ],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
