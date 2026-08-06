@@ -5,15 +5,15 @@
   "type": "module",
   "main": "main-electron.js",
   "scripts": {
-    "dev": "tsx server.ts",
-    "electron:dev": "electron .",
-    "build": "vite build && esbuild server.ts --bundle --platform=node --format=cjs --packages=external --sourcemap --outfile=dist/server.cjs",
-    "electron:build": "npm run build && electron-builder",
-    "start": "node dist/server.cjs",
-    "preview": "vite preview",
-    "clean": "rm -rf dist",
-    "lint": "tsc --noEmit"
-  },
+  "dev": "tsx server.ts",
+  "electron:dev": "electron .",
+  "build": "vite build && esbuild server.ts --bundle --platform=node --format=esm --packages=external --sourcemap --outfile=dist/server.js",
+  "electron:build": "npm run build && electron-builder",
+  "start": "node dist/server.js",
+  "preview": "vite preview",
+  "clean": "rm -rf dist",
+  "lint": "tsc --noEmit"
+},
   "build": {
     "appId": "com.pos.controlinventario",
     "productName": "Control de Inventario y Caja POS",
