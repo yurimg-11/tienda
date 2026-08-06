@@ -9,7 +9,9 @@ const __dirname = path.dirname(__filename);
 
 async function startServer() {
   const app = express();
-  const PORT = 3000;
+  // Se usa el puerto asignado por Render o 3000 en local
+  // process.env.PORT is a string; ensure PORT is a number for app.listen typing
+  const PORT: number = process.env.PORT ? Number(process.env.PORT) : 3000;
 
   app.use(express.json({ limit: '10mb' }));
 
@@ -35,8 +37,6 @@ async function startServer() {
 
     console.log(`[SIMULATED EMAIL] Enviando ticket ${ticket.ticketNumber} a ${email}`);
 
-    // In a production server with SMTP/Sendgrid, this sends real email.
-    // We return a structured confirmation response.
     res.json({
       success: true,
       message: `Ticket ${ticket.ticketNumber} enviado con éxito a ${email}`,
@@ -136,15 +136,15 @@ Habla directo al comerciante en tono profesional y entusiasta en español.`;
     });
     app.use(vite.middlewares);
   } else {
-    const distPath = path.join(__dirname, 'dist');
-    app.use(express.static(distPath));
+    // __dirname ya apunta a la carpeta 'dist', sirviendo index.html y assets correctamente
+    app.use(express.static(__dirname));
     app.get('*', (_req, res) => {
-      res.sendFile(path.join(distPath, 'index.html'));
+      res.sendFile(path.join(__dirname, 'index.html'));
     });
   }
 
   app.listen(PORT, '0.0.0.0', () => {
-    console.log(`Servidor POS corriendo en http://0.0.0.0:${PORT}`);
+    console.log(`Servidor POS corriendo en el puerto ${PORT}`);
   });
 }
 
