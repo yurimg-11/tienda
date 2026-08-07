@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Tienda Casa Manjarrez</string>
+    <string name="title_activity_main">Tienda Casa Manjarrez</string>
+    <string name="package_name">com.casamanjarrez.pos</string>
+    <string name="custom_url_scheme">com.casamanjarrez.pos</string>
+</resources>

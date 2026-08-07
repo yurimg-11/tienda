@@ -26,6 +26,7 @@ import { EmailTicketModal } from '../tickets/EmailTicketModal';
 import { CameraScannerModal } from './CameraScannerModal';
 
 export const POSView: React.FC = () => {
+  const appContext = useApp() as any;
   const {
     products,
     cart,
@@ -38,8 +39,9 @@ export const POSView: React.FC = () => {
     setSearchQuery,
     selectedCategory,
     setSelectedCategory,
-    settings
-  } = useApp();
+    settings,
+    refreshProducts
+  } = appContext;
 
   const [weightedProduct, setWeightedProduct] = useState<Product | null>(null);
   const [weightMode, setWeightMode] = useState<'weight' | 'money'>('weight'); // 'weight' or 'money'
@@ -58,8 +60,17 @@ export const POSView: React.FC = () => {
   const [showEmailModal, setShowEmailModal] = useState<boolean>(false);
   const [showCameraScanner, setShowCameraScanner] = useState<boolean>(false);
 
+  // Recargar datos directamente del servidor o refrescar la pantalla
+  const handleRefreshData = async () => {
+    if (refreshProducts) {
+      await refreshProducts();
+    } else {
+      window.location.reload();
+    }
+  };
+
   // Filter products by selected category and search
-  const filteredProducts = products.filter(p => {
+  const filteredProducts = products.filter((p: Product) => {
     const matchesCategory = selectedCategory === 'todas' || p.category === selectedCategory;
     const q = searchQuery.toLowerCase().trim();
     const matchesSearch =
@@ -71,8 +82,8 @@ export const POSView: React.FC = () => {
   });
 
   // Calculate cart totals
-  const subtotal = cart.reduce((acc, item) => acc + item.quantity * item.unitPrice, 0);
-  const discounts = cart.reduce((acc, item) => acc + item.discount, 0);
+  const subtotal = cart.reduce((acc: number, item: CartItem) => acc + item.quantity * item.unitPrice, 0);
+  const discounts = cart.reduce((acc: number, item: CartItem) => acc + item.discount, 0);
   const total = subtotal - discounts;
 
   const formatCurrency = (val: number) =>
@@ -103,7 +114,7 @@ export const POSView: React.FC = () => {
       setWeightedProduct(product);
       setWeightMode('weight');
       setWeightUnit('g');
-      setWeightValue('500'); // default 500 grams (medista)
+      setWeightValue('500'); // default 500 grams
       setMoneyValue('10');
     } else {
       addToCart(product, 1);
@@ -123,7 +134,7 @@ export const POSView: React.FC = () => {
     e.preventDefault();
     if (!searchQuery) return;
 
-    const matched = products.find(p => p.barcode === searchQuery.trim());
+    const matched = products.find((p: Product) => p.barcode === searchQuery.trim());
     if (matched) {
       handleProductClick(matched);
       setSearchQuery('');
@@ -172,7 +183,7 @@ export const POSView: React.FC = () => {
                 : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-100'
             }`}
           >
-             Todas
+            Todas
           </button>
           {Object.entries(CATEGORY_LABELS).map(([catKey, catMeta]) => {
             const isActive = selectedCategory === catKey;
@@ -193,9 +204,9 @@ export const POSView: React.FC = () => {
           })}
         </div>
 
-        {/* Quick Search & Barcode Form */}
-        <form onSubmit={handleBarcodeSubmit} className="flex gap-2">
-          <div className="relative flex-1">
+        {/* Quick Search, Barcode & Refresh Form */}
+        <form onSubmit={handleBarcodeSubmit} className="flex gap-2 flex-wrap sm:flex-nowrap">
+          <div className="relative flex-1 min-w-[200px]">
             <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
             <input
               type="text"
@@ -205,6 +216,17 @@ export const POSView: React.FC = () => {
               className="w-full bg-white text-slate-800 placeholder-slate-400 text-sm rounded-xl pl-9 pr-3 py-2 border border-slate-300 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 shadow-2xs"
             />
           </div>
+
+          <button
+            type="button"
+            onClick={handleRefreshData}
+            className="bg-slate-800 hover:bg-slate-900 text-white px-3 py-2 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer"
+            title="Refrescar catálogo desde la base de datos"
+          >
+            <span>🔄</span>
+            <span className="hidden sm:inline">Actualizar Precios</span>
+          </button>
+
           <button
             type="submit"
             className="bg-slate-800 hover:bg-slate-900 text-white px-3 py-2 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer"
@@ -213,6 +235,7 @@ export const POSView: React.FC = () => {
             <Barcode className="w-4 h-4 text-emerald-400" />
             <span className="hidden sm:inline">Buscar Código</span>
           </button>
+
           <button
             type="button"
             onClick={() => setShowCameraScanner(true)}
@@ -240,7 +263,7 @@ export const POSView: React.FC = () => {
               </button>
             </div>
           ) : (
-            filteredProducts.map(product => {
+            filteredProducts.map((product: Product) => {
               const expInfo = getExpirationStatus(product, settings.expirationWarningDays);
               const isOutOfStock = product.stock <= 0;
               const isLowStock = product.stock <= product.minStock && !isOutOfStock;
@@ -264,7 +287,7 @@ export const POSView: React.FC = () => {
                     {/* Expiration warning badge */}
                     {expInfo.status === 'expired' || expInfo.status === 'critical' ? (
                       <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded border ${expInfo.badgeBg}`}>
-                         {expInfo.daysRemaining === 0 ? 'Hoy' : `${expInfo.daysRemaining}d`}
+                        {expInfo.daysRemaining === 0 ? 'Hoy' : `${expInfo.daysRemaining}d`}
                       </span>
                     ) : null}
                   </div>
@@ -352,7 +375,7 @@ export const POSView: React.FC = () => {
               <p className="text-xs text-slate-400">Haz clic en los productos para agregar al carrito</p>
             </div>
           ) : (
-            cart.map(item => (
+            cart.map((item: CartItem) => (
               <div key={item.product.id} className="pt-2 first:pt-0 flex items-center justify-between gap-2">
                 <div className="flex-1 min-w-0">
                   <h4 className="text-xs font-semibold text-slate-800 truncate">{item.product.name}</h4>
@@ -708,142 +731,137 @@ export const POSView: React.FC = () => {
             </div>
 
             {/* Total Amount Banner */}
-            <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-4 text-center">
-              <div className="text-xs text-emerald-800 font-semibold uppercase tracking-wider">Total a Cobrar</div>
-              <div className="text-3xl font-black text-emerald-700">{formatCurrency(total)}</div>
+            <div className="bg-emerald-50 rounded-2xl p-4 border border-emerald-200 text-center">
+              <span className="text-xs font-bold text-emerald-700 uppercase tracking-wider block">Total a Cobrar</span>
+              <span className="text-3xl font-black text-emerald-900">{formatCurrency(total)}</span>
             </div>
 
             {/* Payment Method Selector */}
-            <div>
-              <label className="block text-xs font-bold text-slate-700 mb-2">Método de Pago:</label>
+            <div className="space-y-2">
+              <label className="block text-xs font-bold text-slate-700">Método de Pago:</label>
               <div className="grid grid-cols-3 gap-2">
-                {[
-                  { id: 'efectivo', label: 'Efectivo', icon: DollarSign },
-                  { id: 'tarjeta', label: 'Tarjeta', icon: CreditCard },
-                  { id: 'transferencia', label: 'Transferencia', icon: Send },
-                ].map(m => {
-                  const Icon = m.icon;
-                  const isSelected = paymentMethod === m.id;
-                  return (
-                    <button
-                      key={m.id}
-                      type="button"
-                      onClick={() => {
-                        setPaymentMethod(m.id as PaymentMethod);
-                        if (m.id !== 'efectivo') setCashRendered(total.toString());
-                      }}
-                      className={`py-2.5 px-2 rounded-xl border text-xs font-bold flex flex-col items-center gap-1 transition-all ${
-                        isSelected
-                          ? 'bg-slate-900 text-white border-slate-900 shadow-xs'
-                          : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
-                      }`}
-                    >
-                      <Icon className="w-4 h-4 text-emerald-400" />
-                      <span>{m.label}</span>
-                    </button>
-                  );
-                })}
+                <button
+                  type="button"
+                  onClick={() => setPaymentMethod('efectivo')}
+                  className={`py-2.5 px-3 rounded-xl border text-xs font-bold flex flex-col items-center gap-1 transition-all ${
+                    paymentMethod === 'efectivo'
+                      ? 'bg-slate-900 text-white border-slate-900 shadow-xs'
+                      : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
+                  }`}
+                >
+                  <DollarSign className="w-4 h-4" />
+                  Efectivo
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPaymentMethod('tarjeta')}
+                  className={`py-2.5 px-3 rounded-xl border text-xs font-bold flex flex-col items-center gap-1 transition-all ${
+                    paymentMethod === 'tarjeta'
+                      ? 'bg-slate-900 text-white border-slate-900 shadow-xs'
+                      : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
+                  }`}
+                >
+                  <CreditCard className="w-4 h-4" />
+                  Tarjeta
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPaymentMethod('transferencia')}
+                  className={`py-2.5 px-3 rounded-xl border text-xs font-bold flex flex-col items-center gap-1 transition-all ${
+                    paymentMethod === 'transferencia'
+                      ? 'bg-slate-900 text-white border-slate-900 shadow-xs'
+                      : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
+                  }`}
+                >
+                  <Send className="w-4 h-4" />
+                  Transferencia
+                </button>
               </div>
             </div>
 
-            {/* Cash Calculator */}
+            {/* Cash Calculations */}
             {paymentMethod === 'efectivo' && (
-              <div className="space-y-2">
-                <label className="block text-xs font-bold text-slate-700">Paga con ($):</label>
-                <input
-                  type="number"
-                  value={cashRendered}
-                  onChange={e => setCashRendered(e.target.value)}
-                  placeholder="Monto entregado por cliente"
-                  className="w-full text-center text-xl font-bold text-slate-900 border-2 border-slate-300 rounded-xl py-2 focus:outline-none focus:border-emerald-500"
-                />
-
-                {/* Cash Quick Presets */}
-                <div className="flex gap-1.5">
-                  {[total, 50, 100, 200, 500, 1000].map((preset, idx) => (
-                    <button
-                      key={idx}
-                      type="button"
-                      onClick={() => setCashRendered(preset.toFixed(2))}
-                      className="flex-1 py-1 text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-lg"
-                    >
-                      {idx === 0 ? 'Exacto' : `$${preset}`}
-                    </button>
-                  ))}
+              <div className="space-y-3 bg-slate-50 p-3.5 rounded-2xl border border-slate-200">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">Efectivo Recibido:</label>
+                  <input
+                    type="number"
+                    value={cashRendered}
+                    onChange={e => setCashRendered(e.target.value)}
+                    placeholder={total.toString()}
+                    className="w-full text-center text-xl font-black text-slate-900 bg-white border border-slate-300 rounded-xl py-2 focus:outline-none focus:border-emerald-500"
+                  />
                 </div>
-
-                {/* Change Calculated */}
-                <div className="bg-slate-100 rounded-xl p-3 flex justify-between items-center text-sm">
-                  <span className="font-semibold text-slate-700">Cambio a entregar:</span>
-                  <span className={`font-black text-lg ${changeAmount >= 0 ? 'text-emerald-700' : 'text-red-600'}`}>
+                <div className="flex justify-between items-center text-xs font-bold text-slate-700 pt-1">
+                  <span>Cambio a devolver:</span>
+                  <span className={`text-sm font-black ${changeAmount >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
                     {formatCurrency(changeAmount)}
                   </span>
                 </div>
               </div>
             )}
 
-            {/* Optional Customer Email */}
-            <div className="space-y-2 border-t border-slate-100 pt-3">
-              <label className="block text-xs font-bold text-slate-700">
-                Ticket Digital por Correo / Nombre (Opcional):
-              </label>
+            {/* Customer Information Optional */}
+            <div className="space-y-2">
+              <label className="block text-xs font-bold text-slate-700">Datos del Cliente (Opcional):</label>
+              <input
+                type="text"
+                placeholder="Nombre del cliente"
+                value={customerName}
+                onChange={e => setCustomerName(e.target.value)}
+                className="w-full text-xs bg-white text-slate-800 border border-slate-200 rounded-xl px-3 py-2 focus:outline-none focus:border-emerald-500"
+              />
               <input
                 type="email"
+                placeholder="Correo electrónico para enviar ticket"
                 value={customerEmail}
                 onChange={e => setCustomerEmail(e.target.value)}
-                placeholder="correo@cliente.com"
-                className="w-full text-xs text-slate-800 border border-slate-300 rounded-xl px-3 py-2 focus:outline-none focus:border-emerald-500"
+                className="w-full text-xs bg-white text-slate-800 border border-slate-200 rounded-xl px-3 py-2 focus:outline-none focus:border-emerald-500"
               />
             </div>
 
-            {/* Submit Action Buttons */}
-            <div className="space-y-2">
+            {/* Action Buttons */}
+            <div className="flex gap-2 pt-2">
               <button
+                type="button"
                 onClick={() => handleFinishSale(true, false)}
-                className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-black text-sm rounded-xl shadow-md flex items-center justify-center gap-2 cursor-pointer transition-colors"
+                className="flex-1 py-3 px-3 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer shadow-sm"
               >
-                <Printer className="w-5 h-5" />
-                <span>COMPLETAR E IMPRIMIR TICKET</span>
+                <Printer className="w-4 h-4" />
+                <span>Cobrar e Imprimir</span>
               </button>
-
-              {customerEmail && (
-                <button
-                  onClick={() => handleFinishSale(false, true)}
-                  className="w-full py-2.5 bg-slate-800 hover:bg-slate-900 text-white font-bold text-xs rounded-xl flex items-center justify-center gap-2 cursor-pointer"
-                >
-                  <Mail className="w-4 h-4 text-sky-400" />
-                  <span>Enviar por Correo Electrónico</span>
-                </button>
-              )}
+              <button
+                type="button"
+                onClick={() => handleFinishSale(false, true)}
+                className="flex-1 py-3 px-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer shadow-sm"
+              >
+                <CheckCircle2 className="w-4 h-4" />
+                <span>Solo Finalizar</span>
+              </button>
             </div>
+
           </div>
         </div>
       )}
 
-      {/* PRINTABLE TICKET MODAL */}
+      {/* TICKET & EMAIL MODALS */}
       {showTicketModal && completedSale && (
         <TicketModal sale={completedSale} onClose={() => setShowTicketModal(false)} />
       )}
 
-      {/* EMAIL TICKET MODAL */}
       {showEmailModal && completedSale && (
-        <EmailTicketModal
-          sale={completedSale}
-          defaultEmail={customerEmail}
-          onClose={() => setShowEmailModal(false)}
-        />
+        <EmailTicketModal sale={completedSale} onClose={() => setShowEmailModal(false)} />
       )}
 
-      {/* CAMERA BARCODE SCANNER MODAL */}
+      {/* CAMERA SCANNER MODAL */}
       {showCameraScanner && (
         <CameraScannerModal
           products={products}
-          onProductScanned={product => {
-            handleProductClick(product);
-          }}
+          onProductScanned={handleProductClick}
           onClose={() => setShowCameraScanner(false)}
         />
       )}
+
     </div>
   );
-};
+};    
