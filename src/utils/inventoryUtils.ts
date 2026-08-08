@@ -10,7 +10,7 @@ export const getExpirationStatus = (product: Product, warningDays: number = 7): 
   colorClass: string;
   badgeBg: string;
 } => {
-  if (!product.expirationDate) {
+  if (!product?.expirationDate) {
     return { status: 'none', daysRemaining: null, label: 'Sin caducidad', colorClass: 'text-slate-400', badgeBg: 'bg-slate-100 text-slate-600' };
   }
 
@@ -65,25 +65,29 @@ export const getStockStatus = (product: Product): {
   label: string;
   badgeBg: string;
 } => {
-  if (product.stock <= 0) {
+  const stock = product?.stock || 0;
+  const minStock = product?.minStock || 0;
+  const unit = product?.unit || 'pieza';
+
+  if (stock <= 0) {
     return { status: 'out', label: 'AGOTADO', badgeBg: 'bg-red-100 text-red-800 border-red-200' };
   }
-  if (product.stock <= product.minStock) {
-    return { status: 'low', label: `Stock bajo (${product.stock} ${product.unit})`, badgeBg: 'bg-amber-100 text-amber-800 border-amber-200' };
+  if (stock <= minStock) {
+    return { status: 'low', label: `Stock bajo (${stock} ${unit})`, badgeBg: 'bg-amber-100 text-amber-800 border-amber-200' };
   }
-  return { status: 'ok', label: `${product.stock} ${product.unit}`, badgeBg: 'bg-slate-100 text-slate-700' };
+  return { status: 'ok', label: `${stock} ${unit}`, badgeBg: 'bg-slate-100 text-slate-700' };
 };
 
 // Calculate today's metrics
 export const getTodayMetrics = (sales: Sale[]) => {
   const todayStr = new Date().toISOString().split('T')[0];
 
-  const todaysSales = sales.filter(s => {
-    return s.date.startsWith(todayStr);
+  const todaysSales = (sales || []).filter(s => {
+    return s?.date?.startsWith(todayStr);
   });
 
-  const totalSales = todaysSales.reduce((acc, s) => acc + s.total, 0);
-  const totalCost = todaysSales.reduce((acc, s) => acc + s.costTotal, 0);
+  const totalSales = todaysSales.reduce((acc, s) => acc + (s?.total || 0), 0);
+  const totalCost = todaysSales.reduce((acc, s) => acc + (s?.costTotal || 0), 0);
   const netProfit = totalSales - totalCost;
   const transactionCount = todaysSales.length;
 
@@ -92,7 +96,7 @@ export const getTodayMetrics = (sales: Sale[]) => {
   // Find top product sold today
   const productQuantities: Record<string, { name: string; qty: number }> = {};
   todaysSales.forEach(s => {
-    s.items.forEach(item => {
+    (s?.items || []).forEach(item => {
       if (!productQuantities[item.productId]) {
         productQuantities[item.productId] = { name: item.productName, qty: 0 };
       }
