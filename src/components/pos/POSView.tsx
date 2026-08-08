@@ -4,42 +4,7 @@ import { Product, CartItem, PaymentMethod, Sale } from '../../types';
 import { CATEGORY_LABELS } from '../../data/initialData';
 import { getExpirationStatus } from '../../utils/inventoryUtils';
 import { TicketModal } from '../tickets/TicketModal';
-
-// Fallback inline CameraScannerModal to avoid missing module import in some setups.
-// It provides a minimal interface used by POSView: products, onProductScanned, onClose.
-const CameraScannerModal: React.FC<{
-  products: any[];
-  onProductScanned: (p: any) => void;
-  onClose: () => void;
-}> = ({ products, onProductScanned, onClose }) => {
-  return (
-    <div className="fixed inset-0 z-50 bg-slate-900/70 flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl p-4 w-full max-w-lg">
-        <div className="flex justify-between items-center mb-3">
-          <h3 className="font-bold">Escáner de Cámara (simulado)</h3>
-          <button onClick={onClose} className="text-sm text-slate-500">Cerrar</button>
-        </div>
-        <p className="text-xs text-slate-500 mb-3">Selecciona un producto para simular el escaneo.</p>
-        <div className="grid grid-cols-2 gap-2 max-h-64 overflow-y-auto">
-          {products.map(p => (
-            <button
-              key={p.id}
-              onClick={() => {
-                onProductScanned(p);
-                onClose();
-              }}
-              className="p-2 text-left bg-slate-50 rounded"
-            >
-              <div className="text-xs font-semibold">{p.name}</div>
-              <div className="text-[11px] text-slate-400">{p.barcode}</div>
-            </button>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-};
-import {
+import { CameraScannerModal } from './CameraScannerModal';import {
   ShoppingCart,
   Plus,
   Trash2,
@@ -779,14 +744,14 @@ export const POSView: React.FC = () => {
 
       {/* MODAL DEL TICKET */}
       {showTicketModal && completedSale && (
-        <TicketModal sale={completedSale} onClose={() => setShowTicketModal(false)} />
+        <TicketModal sale={completedSale} onClose={() => setShowTicketModal(false)} autoPrint={true} />
       )}
 
-      {/* MODAL DE CÁMARA */}
+      {/* MODAL DE CÁMARA REAL */}
       {showCameraScanner && (
         <CameraScannerModal
           products={products}
-          onProductScanned={(prod) => {
+          onProductScanned={(prod: Product) => {
             handleProductClick(prod);
           }}
           onClose={() => setShowCameraScanner(false)}

@@ -6,6 +6,7 @@ import { Printer, Share2, Mail, Download, CheckCircle2 } from 'lucide-react';
 interface TicketModalProps {
   sale: Sale;
   onClose: () => void;
+  autoPrint?: boolean;
 }
 
 export const TicketModal: React.FC<TicketModalProps> = ({ sale, onClose }) => {
