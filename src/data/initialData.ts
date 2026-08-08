@@ -37,6 +37,11 @@ export const INITIAL_PRODUCTS: Product[] = [];
 
 // Generate sample past sales for today and previous days
 export const generateInitialSales = (): Sale[] => {
+  // Si no hay productos, no generar ventas de prueba
+  if (INITIAL_PRODUCTS.length === 0) {
+    return [];
+  }
+
   const sales: Sale[] = [];
   const now = new Date();
   
