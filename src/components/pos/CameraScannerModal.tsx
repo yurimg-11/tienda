@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode';
 import { Product } from '../../types';
-import { Camera, X, CheckCircle2, AlertCircle, RefreshCw, Volume2, Sparkles, Barcode, Plus } from 'lucide-react';
+import { Camera, X, AlertCircle, Barcode } from 'lucide-react';
 
 interface CameraScannerModalProps {
   products: Product[];
@@ -18,12 +18,12 @@ export const CameraScannerModal: React.FC<CameraScannerModalProps> = ({
 }) => {
   const [lastScannedCode, setLastScannedCode] = useState<string>('');
   const [scanMessage, setScanMessage] = useState<{ type: 'success' | 'error' | 'info'; text: string } | null>(null);
-  const [isScanning, setIsScanning] = useState<boolean>(true);
   const [cameraError, setCameraError] = useState<string>('');
   const scannerRef = useRef<Html5Qrcode | null>(null);
   const lastScanTimeRef = useRef<number>(0);
+  const isStoppingRef = useRef<boolean>(false);
 
-  // Play audio beep when barcode recognized
+  // Reproducir todo de confirmación
   const playBeep = () => {
     try {
       const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
@@ -32,7 +32,7 @@ export const CameraScannerModal: React.FC<CameraScannerModalProps> = ({
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
       osc.type = 'sine';
-      osc.frequency.setValueAtTime(1046.5, ctx.currentTime); // C6 note
+      osc.frequency.setValueAtTime(1046.5, ctx.currentTime);
       gain.gain.setValueAtTime(0.15, ctx.currentTime);
       gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.15);
       osc.connect(gain);
@@ -44,9 +44,36 @@ export const CameraScannerModal: React.FC<CameraScannerModalProps> = ({
     }
   };
 
+  // Función asíncrona para apagar la cámara de forma segura
+  const safeStopScanner = async () => {
+    if (isStoppingRef.current) return;
+    isStoppingRef.current = true;
+
+    if (scannerRef.current) {
+      try {
+        if (scannerRef.current.isScanning) {
+          await scannerRef.current.stop();
+        }
+        scannerRef.current.clear();
+      } catch (err) {
+        console.warn("Aviso al detener el escáner:", err);
+      } finally {
+        scannerRef.current = null;
+        isStoppingRef.current = false;
+      }
+    }
+  };
+
+  // Cierre inmediato del modal
+  const handleClose = () => {
+    // Cerramos la modal de inmediato en UI para evitar congelamientos
+    onClose();
+    // Apagamos la cámara en segundo plano
+    safeStopScanner();
+  };
+
   const processBarcode = (code: string) => {
     const now = Date.now();
-    // Debounce duplicate scans within 1.5s
     if (code === lastScannedCode && now - lastScanTimeRef.current < 1500) {
       return;
     }
@@ -60,35 +87,39 @@ export const CameraScannerModal: React.FC<CameraScannerModalProps> = ({
       if (matched.stock <= 0) {
         setScanMessage({
           type: 'error',
-          text: `⚠️ "${matched.name}" está AGOTADO (Sin Stock).`
+          text: `⚠️ "${matched.name}" está AGOTADO.`
         });
       } else {
         onProductScanned(matched);
         setScanMessage({
           type: 'success',
-          text: ` ¡Agregado al ticket: ${matched.name}!`
+          text: `✓ Agregado: ${matched.name}`
         });
       }
     } else {
+      if (onUnknownBarcode) onUnknownBarcode(code);
       setScanMessage({
         type: 'error',
-        text: ` Código "${code}" no existe en el inventario.`
+        text: `Código "${code}" no registrado en el inventario.`
       });
     }
 
-    // Auto clear feedback message after 3s
     setTimeout(() => {
       setScanMessage(null);
     }, 3000);
   };
 
   useEffect(() => {
-    let html5Qrcode: Html5Qrcode | null = null;
+    let isMounted = true;
 
     const startScanner = async () => {
+      // Esperar a que el DOM monte la div 'camera-reader-element'
+      await new Promise(resolve => setTimeout(resolve, 200));
+      if (!isMounted) return;
+
       try {
         setCameraError('');
-        html5Qrcode = new Html5Qrcode('camera-reader-element');
+        const html5Qrcode = new Html5Qrcode('camera-reader-element');
         scannerRef.current = html5Qrcode;
 
         const config = {
@@ -110,35 +141,31 @@ export const CameraScannerModal: React.FC<CameraScannerModalProps> = ({
           { facingMode: 'environment' },
           config,
           (decodedText) => {
-            processBarcode(decodedText);
+            if (isMounted) processBarcode(decodedText);
           },
           () => {
-            // Frame scan errors are ignored (normal when no barcode in view)
+            // Cuadros sin código de barras son ignorados
           }
         );
-        setIsScanning(true);
       } catch (err: unknown) {
+        if (!isMounted) return;
         console.error('Camera scanner init error:', err);
         const errStr = String(err);
         if (errStr.includes('NotAllowedError') || errStr.includes('Permission')) {
-          setCameraError('Permiso de cámara denegado. Por favor permite el acceso a la cámara en el navegador.');
+          setCameraError('Permiso de cámara denegado. Permite el acceso a la cámara en la barra de direcciones de tu navegador.');
         } else if (errStr.includes('NotFoundError') || errStr.includes('DevicesNotFoundError')) {
-          setCameraError('No se encontró ninguna cámara física conectada en tu dispositivo.');
+          setCameraError('No se encontró ninguna cámara física conectada en este dispositivo.');
         } else {
-          setCameraError('No se pudo inicializar la cámara. Puedes ingresar el código manualmente o probar con la lista simulada.');
+          setCameraError('No se pudo acceder a la cámara. Puedes ingresar el código manualmente o probar la simulación.');
         }
-        setIsScanning(false);
       }
     };
 
     startScanner();
 
     return () => {
-      if (scannerRef.current) {
-        scannerRef.current.stop().catch(() => {}).finally(() => {
-          scannerRef.current?.clear();
-        });
-      }
+      isMounted = false;
+      safeStopScanner();
     };
   }, []);
 
@@ -159,12 +186,14 @@ export const CameraScannerModal: React.FC<CameraScannerModalProps> = ({
                   Cámara En Vivo
                 </span>
               </h3>
-              <p className="text-[11px] text-slate-400">Apunta la cámara al código del producto para agregarlo</p>
+              <p className="text-[11px] text-slate-400">Apunta la cámara al código del producto</p>
             </div>
           </div>
           <button
-            onClick={onClose}
+            type="button"
+            onClick={handleClose}
             className="text-slate-400 hover:text-white p-1.5 rounded-xl hover:bg-slate-800 transition-colors cursor-pointer"
+            title="Cerrar ventana"
           >
             <X className="w-5 h-5" />
           </button>
@@ -175,7 +204,7 @@ export const CameraScannerModal: React.FC<CameraScannerModalProps> = ({
           <div
             className={`p-3 text-xs font-bold text-center flex items-center justify-center gap-2 transition-all ${
               scanMessage.type === 'success'
-                ? 'bg-emerald-600 text-white animate-bounce'
+                ? 'bg-emerald-600 text-white'
                 : 'bg-rose-600 text-white'
             }`}
           >
@@ -185,13 +214,12 @@ export const CameraScannerModal: React.FC<CameraScannerModalProps> = ({
 
         {/* Camera View Area */}
         <div className="relative bg-slate-950 flex-1 flex flex-col items-center justify-center min-h-[260px]">
-          
           {cameraError ? (
             <div className="p-6 text-center text-slate-300 space-y-3 max-w-sm">
               <AlertCircle className="w-10 h-10 text-amber-400 mx-auto" />
-              <p className="text-xs font-semibold">{cameraError}</p>
+              <p className="text-xs font-semibold leading-relaxed">{cameraError}</p>
               <p className="text-[11px] text-slate-400">
-                Tip: Utiliza las pruebas rápidas de códigos a continuación para simular la lectura de cámara sin hardware.
+                Puedes seleccionar los productos manualmente en la lista rápida de abajo.
               </p>
             </div>
           ) : (
@@ -209,10 +237,9 @@ export const CameraScannerModal: React.FC<CameraScannerModalProps> = ({
               </div>
             </div>
           )}
-
         </div>
 
-        {/* SIMULATED SCANNER QUICK BUTTONS (FOR EASY TESTING WITHOUT PRINTED BARCODES) */}
+        {/* SIMULATED SCANNER QUICK BUTTONS */}
         <div className="p-4 bg-slate-50 border-t border-slate-200 space-y-2">
           <div className="flex items-center justify-between text-xs font-bold text-slate-700">
             <span className="flex items-center gap-1">
@@ -244,7 +271,7 @@ export const CameraScannerModal: React.FC<CameraScannerModalProps> = ({
           <div className="flex items-center justify-between pt-2 border-t border-slate-200">
             <button
               type="button"
-              onClick={onClose}
+              onClick={handleClose}
               className="w-full py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs rounded-xl transition-colors cursor-pointer"
             >
               Finalizar / Cerrar Cámara

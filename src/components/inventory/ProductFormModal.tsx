@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Product, ProductCategory, ProductUnit } from '../../types';
 import { CATEGORY_LABELS } from '../../data/initialData';
-import { Barcode, Image, Calendar, Package, DollarSign, Sparkles } from 'lucide-react';
+import { Barcode, Calendar, X } from 'lucide-react';
 
 interface ProductFormModalProps {
   product?: Product | null;
@@ -17,10 +17,10 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
   const [name, setName] = useState<string>(product?.name || '');
   const [category, setCategory] = useState<ProductCategory>(product?.category || 'verduras');
   const [barcode, setBarcode] = useState<string>(product?.barcode || '');
-  const [purchasePrice, setPurchasePrice] = useState<string>(product?.purchasePrice?.toString() || '0');
-  const [sellingPrice, setSellingPrice] = useState<string>(product?.sellingPrice?.toString() || '0');
-  const [stock, setStock] = useState<string>(product?.stock?.toString() || '10');
-  const [minStock, setMinStock] = useState<string>(product?.minStock?.toString() || '3');
+  const [purchasePrice, setPurchasePrice] = useState<string>(product?.purchasePrice !== undefined ? product.purchasePrice.toString() : '0');
+  const [sellingPrice, setSellingPrice] = useState<string>(product?.sellingPrice !== undefined ? product.sellingPrice.toString() : '0');
+  const [stock, setStock] = useState<string>(product?.stock !== undefined ? product.stock.toString() : '10');
+  const [minStock, setMinStock] = useState<string>(product?.minStock !== undefined ? product.minStock.toString() : '3');
   const [unit, setUnit] = useState<ProductUnit>(product?.unit || 'pieza');
   const [expirationDate, setExpirationDate] = useState<string>(product?.expirationDate || '');
   const [imageUrl, setImageUrl] = useState<string>(product?.imageUrl || '');
@@ -31,8 +31,11 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
     setBarcode(randomCode);
   };
 
-  const cost = parseFloat(purchasePrice) || 0;
-  const price = parseFloat(sellingPrice) || 0;
+  const parsedCost = parseFloat(purchasePrice);
+  const parsedPrice = parseFloat(sellingPrice);
+
+  const cost = isNaN(parsedCost) ? 0 : parsedCost;
+  const price = isNaN(parsedPrice) ? 0 : parsedPrice;
   const profit = price - cost;
   const marginPercent = price > 0 ? ((profit / price) * 100).toFixed(1) : '0';
 
@@ -44,8 +47,8 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
       name: name.trim(),
       category,
       barcode: barcode.trim() || '750000000000',
-      purchasePrice: parseFloat(purchasePrice) || 0,
-      sellingPrice: parseFloat(sellingPrice) || 0,
+      purchasePrice: isNaN(parsedCost) ? 0 : parsedCost,
+      sellingPrice: isNaN(parsedPrice) ? 0 : parsedPrice,
       stock: parseFloat(stock) || 0,
       minStock: parseFloat(minStock) || 1,
       unit,
@@ -60,6 +63,7 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
     <div className="fixed inset-0 z-50 bg-slate-900/70 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
       <div className="bg-white rounded-3xl max-w-lg w-full p-5 sm:p-6 space-y-4 shadow-2xl border border-slate-100 my-auto">
         
+        {/* Modal Header */}
         <div className="flex items-center justify-between border-b border-slate-100 pb-3">
           <div>
             <h3 className="text-lg font-black text-slate-900">
@@ -70,10 +74,11 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
             </p>
           </div>
           <button
+            type="button"
             onClick={onClose}
-            className="text-slate-400 hover:text-slate-600 font-bold text-lg"
+            className="text-slate-400 hover:text-slate-600 p-1 rounded-full hover:bg-slate-100 transition-colors"
           >
-            ✕
+            <X className="w-5 h-5" />
           </button>
         </div>
 
@@ -86,7 +91,7 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
               required
               value={name}
               onChange={e => setName(e.target.value)}
-              placeholder="Ej: Jitomate Saladette, Detergente 1kg..."
+              placeholder="Ej: Pierna y Muslo, Bistec de Res, Patas de Pollo (4 piezas)..."
               className="w-full text-sm font-semibold text-slate-900 border border-slate-300 rounded-xl px-3 py-2 focus:outline-none focus:border-emerald-500"
             />
           </div>
@@ -96,7 +101,7 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
             <label className="block text-xs font-bold text-slate-800 mb-1.5 flex items-center justify-between">
               <span>Selecciona la Categoría Correspondiente *</span>
               <span className="text-[10px] text-emerald-700 font-bold bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">
-                Categoría seleccionada: {CATEGORY_LABELS[category]?.icon} {CATEGORY_LABELS[category]?.name}
+                Categoría: {CATEGORY_LABELS[category]?.icon} {CATEGORY_LABELS[category]?.name}
               </span>
             </label>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
@@ -108,7 +113,6 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
                     type="button"
                     onClick={() => {
                       setCategory(catKey as ProductCategory);
-                      // Auto suggest default unit based on category
                       if (catKey === 'verduras' || catKey === 'frutas' || catKey === 'carnes') {
                         if (unit !== 'kg' && unit !== 'g') setUnit('kg');
                       } else if (catKey === 'bebidas') {
@@ -127,7 +131,7 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
                       <span className="text-xl">{catMeta.icon}</span>
                       {isSelected && (
                         <span className="text-[10px] bg-emerald-500 text-slate-950 font-black px-1.5 py-0.5 rounded-md">
-                          SELECCIONADO
+                          ✓
                         </span>
                       )}
                     </div>
@@ -145,20 +149,20 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
             <label className="block text-xs font-bold text-slate-700 mb-1">Unidad de Medida / Venta *</label>
             <div className="grid grid-cols-3 sm:grid-cols-6 gap-1.5">
               {[
-                { id: 'kg', label: 'Kilogramo (kg)', short: ' kg' },
-                { id: 'g', label: 'Gramo (g)', short: ' g' },
-                { id: 'pieza', label: 'Pieza (pz)', short: ' Piece' },
-                { id: 'litro', label: 'Litro (L)', short: ' Litro' },
-                { id: 'paquete', label: 'Paquete', short: ' Paq' },
-                { id: 'caja', label: 'Caja', short: ' Caja' },
+                { id: 'kg', short: 'Kg' },
+                { id: 'g', short: 'Gramo' },
+                { id: 'pieza', short: 'Pieza' },
+                { id: 'litro', short: 'Litro' },
+                { id: 'paquete', short: 'Paquete' },
+                { id: 'caja', short: 'Caja' },
               ].map(u => (
                 <button
                   key={u.id}
                   type="button"
                   onClick={() => setUnit(u.id as ProductUnit)}
-                  className={`py-2 px-2 text-center rounded-xl text-xs font-bold border transition-all cursor-pointer ${
+                  className={`py-2 px-1 text-center rounded-xl text-xs font-bold border transition-all cursor-pointer ${
                     unit === u.id
-                      ? 'bg-emerald-600 text-white border-emerald-600 shadow-2xs'
+                      ? 'bg-emerald-600 text-white border-emerald-600 shadow-xs'
                       : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
                   }`}
                 >
@@ -213,14 +217,19 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
           <div className="bg-slate-50 border border-slate-200 rounded-2xl p-3 space-y-2">
             <div className="grid grid-cols-2 gap-2.5">
               <div>
-                <label className="block text-[11px] font-bold text-slate-600 mb-0.5">Precio Compra (Costo $)</label>
+                <label className="block text-[11px] font-bold text-slate-600 mb-0.5">
+                  Precio Compra (Costo $)
+                </label>
                 <input
                   type="number"
                   step="0.01"
+                  min="0"
                   value={purchasePrice}
                   onChange={e => setPurchasePrice(e.target.value)}
+                  placeholder="0.00"
                   className="w-full text-sm font-bold text-slate-900 border border-slate-300 rounded-xl px-3 py-1.5 focus:outline-none focus:border-emerald-500"
                 />
+                <span className="text-[10px] text-slate-400">Poner $0 si viene incluido en el pollo</span>
               </div>
 
               <div>
@@ -228,15 +237,17 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
                 <input
                   type="number"
                   step="0.01"
+                  min="0"
                   value={sellingPrice}
                   onChange={e => setSellingPrice(e.target.value)}
+                  placeholder="0.00"
                   className="w-full text-sm font-bold text-emerald-700 border border-slate-300 rounded-xl px-3 py-1.5 focus:outline-none focus:border-emerald-500"
                 />
               </div>
             </div>
 
             {/* Calculated Profit Badge */}
-            <div className="flex items-center justify-between text-xs pt-1 border-t border-slate-200/80">
+            <div className="flex items-center justify-between text-xs pt-2 border-t border-slate-200/80">
               <span className="text-slate-600 font-semibold">Ganancia Neta por unidad:</span>
               <span className={`font-black ${profit >= 0 ? 'text-emerald-700' : 'text-red-600'}`}>
                 ${profit.toFixed(2)} ({marginPercent}% margen)
@@ -286,13 +297,13 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 py-2.5 text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl"
+              className="flex-1 py-2.5 text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl transition-colors cursor-pointer"
             >
               Cancelar
             </button>
             <button
               type="submit"
-              className="flex-1 py-2.5 text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl shadow-xs"
+              className="flex-1 py-2.5 text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl shadow-xs transition-colors cursor-pointer"
             >
               {product ? 'Guardar Cambios' : 'Registrar Producto'}
             </button>
