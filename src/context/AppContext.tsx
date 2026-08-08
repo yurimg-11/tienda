@@ -3,6 +3,7 @@ import React, {
   useContext,
   useState,
   useEffect,
+  useCallback,
 } from 'react';
 
 import { supabase } from '../lib/supabase';
@@ -51,23 +52,17 @@ interface AppContextType {
   currentUserRole: UserRole;
   activeCashierName: string;
 
-  // Navegación
   setActiveTab: (tab: string) => void;
   setSearchQuery: (query: string) => void;
   setSelectedCategory: (cat: string) => void;
 
-  // Usuarios
   switchUserRole: (
     role: UserRole,
     name?: string
   ) => void;
 
-  // Productos
   addProduct: (
-    product: Omit<
-      Product,
-      'id' | 'createdAt' | 'updatedAt'
-    >
+    product: Omit<Product, 'id' | 'createdAt' | 'updatedAt'>
   ) => Promise<void>;
 
   updateProduct: (
@@ -84,7 +79,6 @@ interface AppContextType {
     amountToAdd: number
   ) => Promise<void>;
 
-  // Carrito
   addToCart: (
     product: Product,
     quantity?: number
@@ -106,7 +100,6 @@ interface AppContextType {
 
   clearCart: () => void;
 
-  // Ventas
   completeSale: (
     paymentMethod: PaymentMethod,
     amountPaid: number,
@@ -120,7 +113,6 @@ interface AppContextType {
     reason?: string
   ) => Promise<boolean>;
 
-  // Configuración
   updateSettings: (
     newSettings: Partial<StoreSettings>
   ) => void;
@@ -159,119 +151,305 @@ const getTime = () =>
     minute: '2-digit',
   });
 
-/* =========================================================
-   PRODUCTOS: SUPABASE -> APP
-========================================================= */
-
 const productFromDb = (
   row: any
 ): Product => ({
   id: row.id,
-
   name: row.name ?? '',
-
-  category:
-    row.category ?? 'otros',
-
-  barcode:
-    row.barcode ?? '',
-
-  purchasePrice:
-    Number(row.purchase_price ?? 0),
-
-  sellingPrice:
-    Number(row.selling_price ?? 0),
-
-  stock:
-    Number(row.stock ?? 0),
-
-  minStock:
-    Number(row.min_stock ?? 0),
-
-  unit:
-    row.unit ?? 'pieza',
-
+  category: row.category ?? 'otros',
+  barcode: row.barcode ?? '',
+  purchasePrice: Number(
+    row.purchase_price ?? 0
+  ),
+  sellingPrice: Number(
+    row.selling_price ?? 0
+  ),
+  stock: Number(
+    row.stock ?? 0
+  ),
+  minStock: Number(
+    row.min_stock ?? 0
+  ),
+  unit: row.unit ?? 'pieza',
   expirationDate:
     row.expiration_date ??
     undefined,
-
   imageUrl:
     row.image_url ??
     undefined,
-
   notes:
     row.notes ??
     undefined,
-
   createdAt:
     row.created_at ??
     getNow(),
-
   updatedAt:
     row.updated_at ??
     row.created_at ??
     getNow(),
 });
 
-/* =========================================================
-   PRODUCTOS: APP -> SUPABASE
-========================================================= */
-
 const productToDb = (
   product: Product
 ) => ({
   id: product.id,
-
   name: product.name,
-
   category: product.category,
-
-  barcode:
-    product.barcode ?? '',
-
+  barcode: product.barcode ?? '',
   purchase_price:
     product.purchasePrice ?? 0,
-
   selling_price:
     product.sellingPrice ?? 0,
-
   stock:
     product.stock ?? 0,
-
   min_stock:
     product.minStock ?? 0,
-
   unit:
     product.unit ?? 'pieza',
-
   expiration_date:
     product.expirationDate || null,
-
   image_url:
     product.imageUrl || null,
-
   notes:
     product.notes || null,
-
   created_at:
     product.createdAt,
-
   updated_at:
     product.updatedAt,
 });
 
-/* =========================================================
-   PROVIDER
-========================================================= */
+const saleItemFromDb = (
+  row: any
+): SaleItem => ({
+  productId:
+    row.product_id,
+  productName:
+    row.product_name ?? '',
+  category:
+    row.category ?? 'otros',
+  quantity:
+    Number(row.quantity ?? 0),
+  unit:
+    row.unit ?? 'pieza',
+  purchasePrice:
+    Number(row.purchase_price ?? 0),
+  sellingPrice:
+    Number(row.selling_price ?? 0),
+  discount:
+    Number(row.discount ?? 0),
+  total:
+    Number(row.total ?? 0),
+});
+
+const saleFromDb = (
+  row: any
+): SaleWithCancellation => {
+  const items =
+    Array.isArray(row.sale_items)
+      ? row.sale_items.map(
+          saleItemFromDb
+        )
+      : [];
+
+  return {
+    id:
+      row.id,
+
+    ticketNumber:
+      row.ticket_number,
+
+    date:
+      row.date,
+
+    items,
+
+    subtotal:
+      Number(row.subtotal ?? 0),
+
+    discountTotal:
+      Number(
+        row.discount_total ?? 0
+      ),
+
+    total:
+      Number(row.total ?? 0),
+
+    costTotal:
+      Number(row.cost_total ?? 0),
+
+    profitTotal:
+      Number(
+        row.profit_total ?? 0
+      ),
+
+    paymentMethod:
+      row.payment_method as PaymentMethod,
+
+    amountPaid:
+      Number(
+        row.amount_paid ?? 0
+      ),
+
+    cashRendered:
+      Number(
+        row.cash_rendered ?? 0
+      ),
+
+    changeGiven:
+      Number(
+        row.change_given ?? 0
+      ),
+
+    changeAmount:
+      Number(
+        row.change_amount ?? 0
+      ),
+
+    cashierName:
+      row.cashier_name ?? '',
+
+    customerEmail:
+      row.customer_email ??
+      undefined,
+
+    customerName:
+      row.customer_name ??
+      undefined,
+
+    notes:
+      row.notes ??
+      undefined,
+
+    cancelled:
+      Boolean(
+        row.cancelled ?? false
+      ),
+
+    cancelledAt:
+      row.cancelled_at ??
+      undefined,
+
+    cancelledBy:
+      row.cancelled_by ??
+      undefined,
+
+    cancellationReason:
+      row.cancellation_reason ??
+      undefined,
+  };
+};
+
+const saleToDb = (
+  sale: SaleWithCancellation
+) => ({
+  id:
+    sale.id,
+
+  ticket_number:
+    sale.ticketNumber,
+
+  date:
+    sale.date,
+
+  subtotal:
+    sale.subtotal ?? 0,
+
+  discount_total:
+    sale.discountTotal ?? 0,
+
+  total:
+    sale.total ?? 0,
+
+  cost_total:
+    sale.costTotal ?? 0,
+
+  profit_total:
+    sale.profitTotal ?? 0,
+
+  payment_method:
+    sale.paymentMethod,
+
+  amount_paid:
+    sale.amountPaid ?? 0,
+
+  cash_rendered:
+    sale.cashRendered ?? 0,
+
+  change_given:
+    sale.changeGiven ?? 0,
+
+  change_amount:
+    sale.changeAmount ?? 0,
+
+  cashier_name:
+    sale.cashierName ?? '',
+
+  customer_email:
+    sale.customerEmail ||
+    null,
+
+  customer_name:
+    sale.customerName ||
+    null,
+
+  notes:
+    sale.notes ||
+    null,
+
+  cancelled:
+    sale.cancelled ?? false,
+
+  cancelled_at:
+    sale.cancelledAt ||
+    null,
+
+  cancelled_by:
+    sale.cancelledBy ||
+    null,
+
+  cancellation_reason:
+    sale.cancellationReason ||
+    null,
+});
+
+const saleItemsToDb = (
+  sale: SaleWithCancellation
+) =>
+  sale.items.map(item => ({
+    sale_id:
+      sale.id,
+
+    product_id:
+      item.productId,
+
+    product_name:
+      item.productName,
+
+    category:
+      item.category ?? 'otros',
+
+    quantity:
+      item.quantity ?? 0,
+
+    unit:
+      item.unit ?? 'pieza',
+
+    purchase_price:
+      item.purchasePrice ?? 0,
+
+    selling_price:
+      item.sellingPrice ?? 0,
+
+    discount:
+      item.discount ?? 0,
+
+    total:
+      item.total ?? 0,
+  }));
 
 export const AppProvider: React.FC<{
   children: React.ReactNode;
 }> = ({ children }) => {
-
-  /* =======================================================
-     PRODUCTOS
-  ======================================================= */
-
   const [products, setProducts] =
     useState<Product[]>(() => {
       const saved =
@@ -292,10 +470,6 @@ export const AppProvider: React.FC<{
 
       return INITIAL_PRODUCTS;
     });
-
-  /* =======================================================
-     VENTAS
-  ======================================================= */
 
   const [sales, setSales] =
     useState<SaleWithCancellation[]>(() => {
@@ -318,10 +492,6 @@ export const AppProvider: React.FC<{
       return generateInitialSales();
     });
 
-  /* =======================================================
-     CONFIGURACIÓN
-  ======================================================= */
-
   const [settings, setSettings] =
     useState<StoreSettings>(() => {
       const saved =
@@ -343,23 +513,19 @@ export const AppProvider: React.FC<{
       return INITIAL_SETTINGS;
     });
 
-  /* =======================================================
-     ESTADOS GENERALES
-  ======================================================= */
-
   const [cart, setCart] =
     useState<CartItem[]>([]);
 
   const [activeTab, setActiveTab] =
-    useState<string>('pos');
+    useState('pos');
 
   const [searchQuery, setSearchQuery] =
-    useState<string>('');
+    useState('');
 
   const [
     selectedCategory,
     setSelectedCategory,
-  ] = useState<string>('todas');
+  ] = useState('todas');
 
   const [
     cloudSyncStatus,
@@ -374,7 +540,7 @@ export const AppProvider: React.FC<{
   const [
     lastSyncedAt,
     setLastSyncedAt,
-  ] = useState<string>(getTime());
+  ] = useState(getTime());
 
   const [
     currentUserRole,
@@ -383,14 +549,15 @@ export const AppProvider: React.FC<{
     return (
       (localStorage.getItem(
         'pos_user_role'
-      ) as UserRole) || 'admin'
+      ) as UserRole) ||
+      'admin'
     );
   });
 
   const [
     activeCashierName,
     setActiveCashierName,
-  ] = useState<string>(() => {
+  ] = useState(() => {
     return (
       localStorage.getItem(
         'pos_cashier_name'
@@ -398,10 +565,6 @@ export const AppProvider: React.FC<{
       'Administrador Principal'
     );
   });
-
-  /* =======================================================
-     CAMBIO DE USUARIO
-  ======================================================= */
 
   const switchUserRole = (
     role: UserRole,
@@ -460,10 +623,6 @@ export const AppProvider: React.FC<{
     }
   };
 
-  /* =======================================================
-     CACHE LOCAL
-  ======================================================= */
-
   useEffect(() => {
     localStorage.setItem(
       LOCAL_STORAGE_KEY_PRODUCTS,
@@ -485,71 +644,177 @@ export const AppProvider: React.FC<{
     );
   }, [settings]);
 
-  /* =======================================================
-     SINCRONIZACIÓN
-  ======================================================= */
-
-  const triggerCloudSync = () => {
-    setCloudSyncStatus(
-      'syncing'
-    );
-
-    setLastSyncedAt(
-      getTime()
-    );
-  };
-
-  /* =======================================================
-     CARGAR PRODUCTOS DESDE SUPABASE
-  ======================================================= */
-
-  useEffect(() => {
-    let mounted = true;
-
-    const loadProducts =
-      async () => {
-        setCloudSyncStatus(
-          'syncing'
+  const loadProducts =
+    useCallback(async () => {
+      const {
+        data,
+        error,
+      } = await supabase
+        .from('products')
+        .select('*')
+        .order(
+          'created_at',
+          {
+            ascending: false,
+          }
         );
 
+      if (error) {
+        console.error(
+          'Error cargando productos:',
+          error
+        );
+
+        throw error;
+      }
+
+      const remoteProducts =
+        (data ?? []).map(
+          productFromDb
+        );
+
+      setProducts(
+        remoteProducts
+      );
+
+      return remoteProducts;
+    }, []);
+
+  const loadSales =
+    useCallback(async () => {
+      const {
+        data,
+        error,
+      } = await supabase
+        .from('sales')
+        .select(
+          `
+          *,
+          sale_items (
+            id,
+            sale_id,
+            product_id,
+            product_name,
+            category,
+            quantity,
+            unit,
+            purchase_price,
+            selling_price,
+            discount,
+            total,
+            created_at
+          )
+        `
+        )
+        .order(
+          'date',
+          {
+            ascending: false,
+          }
+        );
+
+      if (error) {
+        console.error(
+          'Error cargando ventas:',
+          error
+        );
+
+        throw error;
+      }
+
+      const remoteSales =
+        (data ?? []).map(
+          saleFromDb
+        );
+
+      setSales(
+        remoteSales
+      );
+
+      return remoteSales;
+    }, []);
+
+  const syncSaleToCloud =
+    useCallback(
+      async (
+        sale: SaleWithCancellation
+      ) => {
         const {
-          data,
-          error,
+          error: saleError,
         } = await supabase
-          .from('products')
-          .select('*')
-          .order(
-            'created_at',
+          .from('sales')
+          .upsert(
+            saleToDb(sale),
             {
-              ascending: false,
+              onConflict: 'id',
             }
           );
 
-        if (!mounted) {
-          return;
-        }
-
-        if (error) {
+        if (saleError) {
           console.error(
-            'Error cargando productos:',
-            error
+            'Error guardando venta:',
+            saleError
           );
 
-          setCloudSyncStatus(
-            'offline'
-          );
-
-          return;
+          throw saleError;
         }
 
-        const remoteProducts =
-          (data ?? []).map(
-            productFromDb
+        const {
+          error: deleteItemsError,
+        } = await supabase
+          .from('sale_items')
+          .delete()
+          .eq(
+            'sale_id',
+            sale.id
           );
 
-        setProducts(
-          remoteProducts
-        );
+        if (deleteItemsError) {
+          console.error(
+            'Error limpiando partidas:',
+            deleteItemsError
+          );
+
+          throw deleteItemsError;
+        }
+
+        const items =
+          saleItemsToDb(sale);
+
+        if (items.length > 0) {
+          const {
+            error: itemsError,
+          } = await supabase
+            .from('sale_items')
+            .insert(items);
+
+          if (itemsError) {
+            console.error(
+              'Error guardando partidas:',
+              itemsError
+            );
+
+            throw itemsError;
+          }
+        }
+      },
+      []
+    );
+
+  const syncAllSales =
+    useCallback(async () => {
+      setCloudSyncStatus(
+        'syncing'
+      );
+
+      try {
+        for (const sale of sales) {
+          await syncSaleToCloud(
+            sale
+          );
+        }
+
+        await loadSales();
 
         setCloudSyncStatus(
           'synced'
@@ -558,23 +823,75 @@ export const AppProvider: React.FC<{
         setLastSyncedAt(
           getTime()
         );
-
-        console.log(
-          'Productos cargados desde Supabase:',
-          remoteProducts.length
+      } catch (error) {
+        console.error(
+          'Error sincronizando ventas:',
+          error
         );
+
+        setCloudSyncStatus(
+          'error'
+        );
+      }
+    }, [
+      sales,
+      syncSaleToCloud,
+      loadSales,
+    ]);
+
+  const triggerCloudSync =
+    useCallback(() => {
+      void syncAllSales();
+    }, [syncAllSales]);
+
+  useEffect(() => {
+    let mounted = true;
+
+    const loadCloudData =
+      async () => {
+        setCloudSyncStatus(
+          'syncing'
+        );
+
+        try {
+          await Promise.all([
+            loadProducts(),
+            loadSales(),
+          ]);
+
+          if (!mounted) {
+            return;
+          }
+
+          setCloudSyncStatus(
+            'synced'
+          );
+
+          setLastSyncedAt(
+            getTime()
+          );
+        } catch (error) {
+          if (!mounted) {
+            return;
+          }
+
+          console.error(
+            'Error cargando datos desde Supabase:',
+            error
+          );
+
+          setCloudSyncStatus(
+            'offline'
+          );
+        }
       };
 
-    loadProducts();
-
-    /* =====================================================
-       REALTIME DE PRODUCTOS
-    ===================================================== */
+    void loadCloudData();
 
     const channel =
       supabase
         .channel(
-          'products-realtime'
+          'pos-database-realtime'
         )
         .on(
           'postgres_changes',
@@ -583,104 +900,111 @@ export const AppProvider: React.FC<{
             schema: 'public',
             table: 'products',
           },
-          payload => {
+          async () => {
             if (!mounted) {
               return;
             }
 
-            if (
-              payload.eventType ===
-              'INSERT'
-            ) {
-              const product =
-                productFromDb(
-                  payload.new
-                );
+            try {
+              await loadProducts();
 
-              setProducts(prev => {
-                const exists =
-                  prev.some(
-                    item =>
-                      item.id ===
-                      product.id
-                  );
-
-                if (exists) {
-                  return prev.map(
-                    item =>
-                      item.id ===
-                      product.id
-                        ? product
-                        : item
-                  );
-                }
-
-                return [
-                  product,
-                  ...prev,
-                ];
-              });
-            }
-
-            if (
-              payload.eventType ===
-              'UPDATE'
-            ) {
-              const product =
-                productFromDb(
-                  payload.new
-                );
-
-              setProducts(prev => {
-                const exists =
-                  prev.some(
-                    item =>
-                      item.id ===
-                      product.id
-                  );
-
-                if (exists) {
-                  return prev.map(
-                    item =>
-                      item.id ===
-                      product.id
-                        ? product
-                        : item
-                  );
-                }
-
-                return [
-                  product,
-                  ...prev,
-                ];
-              });
-            }
-
-            if (
-              payload.eventType ===
-              'DELETE'
-            ) {
-              const deletedId =
-                payload.old?.id;
-
-              if (deletedId) {
-                setProducts(prev =>
-                  prev.filter(
-                    item =>
-                      item.id !==
-                      deletedId
-                  )
-                );
+              if (!mounted) {
+                return;
               }
+
+              setCloudSyncStatus(
+                'synced'
+              );
+
+              setLastSyncedAt(
+                getTime()
+              );
+            } catch (error) {
+              console.error(
+                'Error actualizando productos:',
+                error
+              );
+
+              setCloudSyncStatus(
+                'error'
+              );
+            }
+          }
+        )
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'sales',
+          },
+          async () => {
+            if (!mounted) {
+              return;
             }
 
-            setCloudSyncStatus(
-              'synced'
-            );
+            try {
+              await loadSales();
 
-            setLastSyncedAt(
-              getTime()
-            );
+              if (!mounted) {
+                return;
+              }
+
+              setCloudSyncStatus(
+                'synced'
+              );
+
+              setLastSyncedAt(
+                getTime()
+              );
+            } catch (error) {
+              console.error(
+                'Error actualizando ventas:',
+                error
+              );
+
+              setCloudSyncStatus(
+                'error'
+              );
+            }
+          }
+        )
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'sale_items',
+          },
+          async () => {
+            if (!mounted) {
+              return;
+            }
+
+            try {
+              await loadSales();
+
+              if (!mounted) {
+                return;
+              }
+
+              setCloudSyncStatus(
+                'synced'
+              );
+
+              setLastSyncedAt(
+                getTime()
+              );
+            } catch (error) {
+              console.error(
+                'Error actualizando partidas:',
+                error
+              );
+
+              setCloudSyncStatus(
+                'error'
+              );
+            }
           }
         )
         .subscribe(status => {
@@ -724,11 +1048,10 @@ export const AppProvider: React.FC<{
         channel
       );
     };
-  }, []);
-
-  /* =======================================================
-     AGREGAR PRODUCTO
-  ======================================================= */
+  }, [
+    loadProducts,
+    loadSales,
+  ]);
 
   const addProduct = async (
     productData: Omit<
@@ -738,20 +1061,24 @@ export const AppProvider: React.FC<{
   ) => {
     const now = getNow();
 
-    const newProduct: Product = {
-      ...productData,
+    const newProduct: Product =
+      {
+        ...productData,
 
-      id:
-        'prod-' +
-        Date.now() +
-        '-' +
-        Math.random()
-          .toString(36)
-          .substring(2, 7),
+        id:
+          'prod-' +
+          Date.now() +
+          '-' +
+          Math.random()
+            .toString(36)
+            .substring(2, 7),
 
-      createdAt: now,
-      updatedAt: now,
-    };
+        createdAt:
+          now,
+
+        updatedAt:
+          now,
+      };
 
     setCloudSyncStatus(
       'syncing'
@@ -786,29 +1113,14 @@ export const AppProvider: React.FC<{
     const savedProduct =
       productFromDb(data);
 
-    setProducts(prev => {
-      const exists =
-        prev.some(
-          item =>
-            item.id ===
-            savedProduct.id
-        );
-
-      if (exists) {
-        return prev.map(
-          item =>
-            item.id ===
-            savedProduct.id
-              ? savedProduct
-              : item
-        );
-      }
-
-      return [
-        savedProduct,
-        ...prev,
-      ];
-    });
+    setProducts(prev => [
+      savedProduct,
+      ...prev.filter(
+        item =>
+          item.id !==
+          savedProduct.id
+      ),
+    ]);
 
     setCloudSyncStatus(
       'synced'
@@ -819,266 +1131,251 @@ export const AppProvider: React.FC<{
     );
   };
 
-  /* =======================================================
-     ACTUALIZAR PRODUCTO
-  ======================================================= */
+  const updateProduct =
+    async (
+      id: string,
+      productUpdates: Partial<Product>
+    ) => {
+      const existingProduct =
+        products.find(
+          product =>
+            product.id === id
+        );
 
-  const updateProduct = async (
-    id: string,
-    productUpdates: Partial<Product>
-  ) => {
-    const existingProduct =
-      products.find(
-        product =>
-          product.id === id
-      );
+      if (!existingProduct) {
+        throw new Error(
+          'Producto no encontrado.'
+        );
+      }
 
-    if (!existingProduct) {
-      console.error(
-        'Producto no encontrado:',
-        id
-      );
+      const now = getNow();
 
-      setCloudSyncStatus(
-        'error'
-      );
-
-      return;
-    }
-
-    const now = getNow();
-
-    const updatedProduct: Product =
-      {
+      const updatedProduct:
+        Product = {
         ...existingProduct,
         ...productUpdates,
         updatedAt: now,
       };
 
-    setCloudSyncStatus(
-      'syncing'
-    );
+      setCloudSyncStatus(
+        'syncing'
+      );
 
-    const {
-      data,
-      error,
-    } = await supabase
-      .from('products')
-      .update({
-        name:
-          updatedProduct.name,
+      const {
+        data,
+        error,
+      } = await supabase
+        .from('products')
+        .update({
+          name:
+            updatedProduct.name,
 
-        category:
-          updatedProduct.category,
+          category:
+            updatedProduct.category,
 
-        barcode:
-          updatedProduct.barcode ??
-          '',
+          barcode:
+            updatedProduct.barcode ??
+            '',
 
-        purchase_price:
-          updatedProduct.purchasePrice ??
-          0,
+          purchase_price:
+            updatedProduct.purchasePrice ??
+            0,
 
-        selling_price:
-          updatedProduct.sellingPrice ??
-          0,
+          selling_price:
+            updatedProduct.sellingPrice ??
+            0,
 
-        stock:
-          updatedProduct.stock ??
-          0,
+          stock:
+            updatedProduct.stock ??
+            0,
 
-        min_stock:
-          updatedProduct.minStock ??
-          0,
+          min_stock:
+            updatedProduct.minStock ??
+            0,
 
-        unit:
-          updatedProduct.unit ??
-          'pieza',
+          unit:
+            updatedProduct.unit ??
+            'pieza',
 
-        expiration_date:
-          updatedProduct.expirationDate ||
-          null,
+          expiration_date:
+            updatedProduct.expirationDate ||
+            null,
 
-        image_url:
-          updatedProduct.imageUrl ||
-          null,
+          image_url:
+            updatedProduct.imageUrl ||
+            null,
 
-        notes:
-          updatedProduct.notes ||
-          null,
+          notes:
+            updatedProduct.notes ||
+            null,
 
-        updated_at: now,
-      })
-      .eq('id', id)
-      .select()
-      .single();
+          updated_at:
+            now,
+        })
+        .eq('id', id)
+        .select()
+        .single();
 
-    if (error) {
-      console.error(
-        'Error actualizando producto:',
-        error
+      if (error) {
+        console.error(
+          'Error actualizando producto:',
+          error
+        );
+
+        setCloudSyncStatus(
+          'error'
+        );
+
+        throw error;
+      }
+
+      const savedProduct =
+        productFromDb(data);
+
+      setProducts(prev =>
+        prev.map(product =>
+          product.id === id
+            ? savedProduct
+            : product
+        )
       );
 
       setCloudSyncStatus(
-        'error'
+        'synced'
       );
 
-      throw error;
-    }
+      setLastSyncedAt(
+        getTime()
+      );
+    };
 
-    const savedProduct =
-      productFromDb(data);
+  const deleteProduct =
+    async (
+      id: string
+    ) => {
+      setCloudSyncStatus(
+        'syncing'
+      );
 
-    setProducts(prev =>
-      prev.map(product =>
-        product.id === id
-          ? savedProduct
-          : product
-      )
-    );
+      const {
+        error,
+      } = await supabase
+        .from('products')
+        .delete()
+        .eq('id', id);
 
-    setCloudSyncStatus(
-      'synced'
-    );
+      if (error) {
+        console.error(
+          'Error eliminando producto:',
+          error
+        );
 
-    setLastSyncedAt(
-      getTime()
-    );
-  };
+        setCloudSyncStatus(
+          'error'
+        );
 
-  /* =======================================================
-     ELIMINAR PRODUCTO
-  ======================================================= */
+        throw error;
+      }
 
-  const deleteProduct = async (
-    id: string
-  ) => {
-    setCloudSyncStatus(
-      'syncing'
-    );
-
-    const {
-      error,
-    } = await supabase
-      .from('products')
-      .delete()
-      .eq('id', id);
-
-    if (error) {
-      console.error(
-        'Error eliminando producto:',
-        error
+      setProducts(prev =>
+        prev.filter(
+          product =>
+            product.id !== id
+        )
       );
 
       setCloudSyncStatus(
-        'error'
+        'synced'
       );
 
-      throw error;
-    }
+      setLastSyncedAt(
+        getTime()
+      );
+    };
 
-    setProducts(prev =>
-      prev.filter(
-        product =>
-          product.id !== id
-      )
-    );
+  const adjustStock =
+    async (
+      id: string,
+      amountToAdd: number
+    ) => {
+      const product =
+        products.find(
+          item =>
+            item.id === id
+        );
 
-    setCloudSyncStatus(
-      'synced'
-    );
+      if (!product) {
+        throw new Error(
+          'Producto no encontrado.'
+        );
+      }
 
-    setLastSyncedAt(
-      getTime()
-    );
-  };
+      const newStock =
+        Number(
+          Math.max(
+            0,
+            Number(
+              product.stock || 0
+            ) +
+              Number(
+                amountToAdd || 0
+              )
+          ).toFixed(3)
+        );
 
-  /* =======================================================
-     AJUSTAR STOCK
-  ======================================================= */
+      const now = getNow();
 
-  const adjustStock = async (
-    id: string,
-    amountToAdd: number
-  ) => {
-    const product =
-      products.find(
-        item => item.id === id
+      setCloudSyncStatus(
+        'syncing'
       );
 
-    if (!product) {
-      console.error(
-        'Producto no encontrado:',
-        id
-      );
+      const {
+        data,
+        error,
+      } = await supabase
+        .from('products')
+        .update({
+          stock:
+            newStock,
+          updated_at:
+            now,
+        })
+        .eq('id', id)
+        .select()
+        .single();
 
-      return;
-    }
+      if (error) {
+        console.error(
+          'Error ajustando stock:',
+          error
+        );
 
-    const newStock =
-      Number(
-        Math.max(
-          0,
-          Number(product.stock || 0) +
-            Number(amountToAdd || 0)
-        ).toFixed(3)
-      );
+        setCloudSyncStatus(
+          'error'
+        );
 
-    const now = getNow();
+        throw error;
+      }
 
-    setCloudSyncStatus(
-      'syncing'
-    );
+      const savedProduct =
+        productFromDb(data);
 
-    const {
-      data,
-      error,
-    } = await supabase
-      .from('products')
-      .update({
-        stock: newStock,
-        updated_at: now,
-      })
-      .eq('id', id)
-      .select()
-      .single();
-
-    if (error) {
-      console.error(
-        'Error ajustando stock:',
-        error
+      setProducts(prev =>
+        prev.map(item =>
+          item.id === id
+            ? savedProduct
+            : item
+        )
       );
 
       setCloudSyncStatus(
-        'error'
+        'synced'
       );
 
-      throw error;
-    }
-
-    const savedProduct =
-      productFromDb(data);
-
-    setProducts(prev =>
-      prev.map(item =>
-        item.id === id
-          ? savedProduct
-          : item
-      )
-    );
-
-    setCloudSyncStatus(
-      'synced'
-    );
-
-    setLastSyncedAt(
-      getTime()
-    );
-  };
-
-  /* =======================================================
-     CARRITO
-  ======================================================= */
+      setLastSyncedAt(
+        getTime()
+      );
+    };
 
   const addToCart = (
     product: Product,
@@ -1195,8 +1492,12 @@ export const AppProvider: React.FC<{
       ) ||
       safeQuantity <= 0
     ) {
-      removeFromCart(
-        productId
+      setCart(prev =>
+        prev.filter(
+          item =>
+            item.product?.id !==
+            productId
+        )
       );
 
       return;
@@ -1305,10 +1606,6 @@ export const AppProvider: React.FC<{
     setCart([]);
   };
 
-  /* =======================================================
-     COMPLETAR VENTA
-  ======================================================= */
-
   const completeSale = (
     paymentMethod: PaymentMethod,
     amountPaid: number,
@@ -1326,7 +1623,8 @@ export const AppProvider: React.FC<{
     let discountTotal = 0;
     let costTotal = 0;
 
-    const saleItems: SaleItem[] =
+    const saleItems:
+      SaleItem[] =
       cart.map(item => {
         const quantity =
           Number(
@@ -1452,63 +1750,60 @@ export const AppProvider: React.FC<{
     const now = getNow();
 
     const newSale:
-      SaleWithCancellation = {
-      id:
-        'sale-' +
-        Date.now() +
-        '-' +
-        Math.random()
-          .toString(36)
-          .substring(2, 7),
+      SaleWithCancellation =
+      {
+        id:
+          'sale-' +
+          Date.now() +
+          '-' +
+          Math.random()
+            .toString(36)
+            .substring(2, 7),
 
-      ticketNumber:
-        `TCK-${Date.now()
-          .toString()
-          .slice(-6)}`,
+        ticketNumber:
+          `TCK-${Date.now()
+            .toString()
+            .slice(-6)}`,
 
-      date: now,
+        date: now,
 
-      items:
-        saleItems,
+        items:
+          saleItems,
 
-      subtotal,
+        subtotal,
 
-      discountTotal,
+        discountTotal,
 
-      total,
+        total,
 
-      costTotal,
+        costTotal,
 
-      profitTotal,
+        profitTotal,
 
-      paymentMethod,
+        paymentMethod,
 
-      amountPaid:
-        safeAmountPaid,
+        amountPaid:
+          safeAmountPaid,
 
-      cashRendered:
-        safeAmountPaid,
+        cashRendered:
+          safeAmountPaid,
 
-      changeGiven,
-
-      changeAmount:
         changeGiven,
 
-      cashierName:
-        activeCashierName,
+        changeAmount:
+          changeGiven,
 
-      customerEmail,
+        cashierName:
+          activeCashierName,
 
-      customerName,
+        customerEmail,
 
-      notes,
+        customerName,
 
-      cancelled: false,
-    };
+        notes,
 
-    /* =====================================================
-       DESCONTAR INVENTARIO
-    ===================================================== */
+        cancelled: false,
+      };
 
     const stockUpdates =
       cart
@@ -1562,10 +1857,6 @@ export const AppProvider: React.FC<{
         updatedAt: string;
       }>;
 
-    /* =====================================================
-       ACTUALIZACIÓN LOCAL INMEDIATA
-    ===================================================== */
-
     setProducts(prev =>
       prev.map(product => {
         const update =
@@ -1589,36 +1880,49 @@ export const AppProvider: React.FC<{
       })
     );
 
-    /* =====================================================
-       ACTUALIZACIÓN SUPABASE
-    ===================================================== */
+    setSales(prev => [
+      newSale,
+      ...prev.filter(
+        sale =>
+          sale.id !==
+          newSale.id
+      ),
+    ]);
 
-    if (
-      stockUpdates.length > 0
-    ) {
-      setCloudSyncStatus(
-        'syncing'
-      );
+    clearCart();
 
-      Promise.all(
-        stockUpdates.map(
-          update =>
-            supabase
-              .from('products')
-              .update({
-                stock:
-                  update.updatedStock,
+    setCloudSyncStatus(
+      'syncing'
+    );
 
-                updated_at:
-                  update.updatedAt,
-              })
-              .eq(
-                'id',
-                update.productId
+    void (async () => {
+      try {
+        await syncSaleToCloud(
+          newSale
+        );
+
+        if (
+          stockUpdates.length > 0
+        ) {
+          const results =
+            await Promise.all(
+              stockUpdates.map(
+                update =>
+                  supabase
+                    .from('products')
+                    .update({
+                      stock:
+                        update.updatedStock,
+                      updated_at:
+                        update.updatedAt,
+                    })
+                    .eq(
+                      'id',
+                      update.productId
+                    )
               )
-        )
-      )
-        .then(results => {
+            );
+
           const failed =
             results.find(
               result =>
@@ -1626,239 +1930,111 @@ export const AppProvider: React.FC<{
             );
 
           if (failed?.error) {
-            console.error(
-              'Error sincronizando stock:',
-              failed.error
-            );
-
-            setCloudSyncStatus(
-              'error'
-            );
-
-            return;
+            throw failed.error;
           }
-
-          setCloudSyncStatus(
-            'synced'
-          );
-
-          setLastSyncedAt(
-            getTime()
-          );
-        })
-        .catch(error => {
-          console.error(
-            'Error actualizando stock:',
-            error
-          );
-
-          setCloudSyncStatus(
-            'error'
-          );
-        });
-    }
-
-    /* =====================================================
-       GUARDAR VENTA
-    ===================================================== */
-
-    setSales(prev => [
-      newSale,
-      ...prev,
-    ]);
-
-    clearCart();
-
-    return newSale;
-  };
-
-  /* =======================================================
-     CANCELAR / ANULAR VENTA
-  ======================================================= */
-
-  const cancelSale = async (
-    saleId: string,
-    reason = 'Venta cancelada'
-  ): Promise<boolean> => {
-    const sale =
-      sales.find(
-        item =>
-          item.id === saleId
-      );
-
-    if (!sale) {
-      console.error(
-        'No se encontró la venta:',
-        saleId
-      );
-
-      return false;
-    }
-
-    if (sale.cancelled) {
-      console.warn(
-        'La venta ya está cancelada:',
-        sale.ticketNumber
-      );
-
-      return false;
-    }
-
-    const cancelledAt =
-      getNow();
-
-    /* =====================================================
-       CALCULAR DEVOLUCIÓN DE STOCK
-    ===================================================== */
-
-    const stockUpdates =
-      sale.items
-        .map(item => {
-          const product =
-            products.find(
-              product =>
-                product.id ===
-                item.productId
-            );
-
-          if (!product) {
-            console.warn(
-              'Producto no encontrado:',
-              item.productId
-            );
-
-            return null;
-          }
-
-          const currentStock =
-            Number(
-              product.stock || 0
-            );
-
-          const quantity =
-            Number(
-              item.quantity || 0
-            );
-
-          const restoredStock =
-            Number(
-              (
-                currentStock +
-                quantity
-              ).toFixed(3)
-            );
-
-          return {
-            productId:
-              product.id,
-
-            updatedStock:
-              restoredStock,
-
-            updatedAt:
-              cancelledAt,
-          };
-        })
-        .filter(Boolean) as Array<{
-        productId: string;
-        updatedStock: number;
-        updatedAt: string;
-      }>;
-
-    /* =====================================================
-       ACTUALIZAR STOCK LOCAL
-    ===================================================== */
-
-    setProducts(prev =>
-      prev.map(product => {
-        const update =
-          stockUpdates.find(
-            item =>
-              item.productId ===
-              product.id
-          );
-
-        if (!update) {
-          return product;
         }
 
-        return {
-          ...product,
-
-          stock:
-            update.updatedStock,
-
-          updatedAt:
-            update.updatedAt,
-        };
-      })
-    );
-
-    /* =====================================================
-       DEVOLVER STOCK A SUPABASE
-    ===================================================== */
-
-    if (
-      stockUpdates.length > 0
-    ) {
-      setCloudSyncStatus(
-        'syncing'
-      );
-
-      const results =
-        await Promise.all(
-          stockUpdates.map(
-            update =>
-              supabase
-                .from('products')
-                .update({
-                  stock:
-                    update.updatedStock,
-
-                  updated_at:
-                    update.updatedAt,
-                })
-                .eq(
-                  'id',
-                  update.productId
-                )
-          )
+        setCloudSyncStatus(
+          'synced'
         );
 
-      const failed =
-        results.find(
-          result =>
-            result.error
+        setLastSyncedAt(
+          getTime()
         );
-
-      if (failed?.error) {
+      } catch (error) {
         console.error(
-          'Error devolviendo stock:',
-          failed.error
+          'Error sincronizando venta:',
+          error
         );
 
         setCloudSyncStatus(
           'error'
         );
+      }
+    })();
+
+    return newSale;
+  };
+
+  const cancelSale =
+    async (
+      saleId: string,
+      reason = 'Venta cancelada'
+    ): Promise<boolean> => {
+      const sale =
+        sales.find(
+          item =>
+            item.id ===
+            saleId
+        );
+
+      if (!sale) {
+        console.error(
+          'No se encontró la venta:',
+          saleId
+        );
 
         return false;
       }
-    }
 
-    /* =====================================================
-       MARCAR VENTA COMO CANCELADA
-    ===================================================== */
+      if (sale.cancelled) {
+        return false;
+      }
 
-    setSales(prev =>
-      prev.map(item => {
-        if (
-          item.id !== saleId
-        ) {
-          return item;
-        }
+      const cancelledAt =
+        getNow();
 
-        return {
-          ...item,
+      const stockUpdates =
+        sale.items
+          .map(item => {
+            const product =
+              products.find(
+                product =>
+                  product.id ===
+                  item.productId
+              );
+
+            if (!product) {
+              return null;
+            }
+
+            const currentStock =
+              Number(
+                product.stock || 0
+              );
+
+            const quantity =
+              Number(
+                item.quantity || 0
+              );
+
+            const restoredStock =
+              Number(
+                (
+                  currentStock +
+                  quantity
+                ).toFixed(3)
+              );
+
+            return {
+              productId:
+                product.id,
+              updatedStock:
+                restoredStock,
+              updatedAt:
+                cancelledAt,
+            };
+          })
+          .filter(Boolean) as Array<{
+          productId: string;
+          updatedStock: number;
+          updatedAt: string;
+        }>;
+
+      const cancelledSale:
+        SaleWithCancellation =
+        {
+          ...sale,
 
           cancelled: true,
 
@@ -1871,28 +2047,102 @@ export const AppProvider: React.FC<{
             reason ||
             'Venta cancelada',
         };
-      })
-    );
 
-    setCloudSyncStatus(
-      'synced'
-    );
+      setProducts(prev =>
+        prev.map(product => {
+          const update =
+            stockUpdates.find(
+              item =>
+                item.productId ===
+                product.id
+            );
 
-    setLastSyncedAt(
-      getTime()
-    );
+          if (!update) {
+            return product;
+          }
 
-    console.log(
-      'Venta cancelada:',
-      sale.ticketNumber
-    );
+          return {
+            ...product,
+            stock:
+              update.updatedStock,
+            updatedAt:
+              update.updatedAt,
+          };
+        })
+      );
 
-    return true;
-  };
+      setSales(prev =>
+        prev.map(item =>
+          item.id === saleId
+            ? cancelledSale
+            : item
+        )
+      );
 
-  /* =======================================================
-     CONFIGURACIÓN
-  ======================================================= */
+      setCloudSyncStatus(
+        'syncing'
+      );
+
+      try {
+        await syncSaleToCloud(
+          cancelledSale
+        );
+
+        if (
+          stockUpdates.length > 0
+        ) {
+          const results =
+            await Promise.all(
+              stockUpdates.map(
+                update =>
+                  supabase
+                    .from('products')
+                    .update({
+                      stock:
+                        update.updatedStock,
+                      updated_at:
+                        update.updatedAt,
+                    })
+                    .eq(
+                      'id',
+                      update.productId
+                    )
+              )
+            );
+
+          const failed =
+            results.find(
+              result =>
+                result.error
+            );
+
+          if (failed?.error) {
+            throw failed.error;
+          }
+        }
+
+        setCloudSyncStatus(
+          'synced'
+        );
+
+        setLastSyncedAt(
+          getTime()
+        );
+
+        return true;
+      } catch (error) {
+        console.error(
+          'Error sincronizando cancelación:',
+          error
+        );
+
+        setCloudSyncStatus(
+          'error'
+        );
+
+        return false;
+      }
+    };
 
   const updateSettings = (
     newSettings: Partial<StoreSettings>
@@ -1901,25 +2151,17 @@ export const AppProvider: React.FC<{
       ...prev,
       ...newSettings,
     }));
-
-    triggerCloudSync();
   };
-
-  /* =======================================================
-     EXPORTAR RESPALDO
-  ======================================================= */
 
   const exportBackup = () => {
     const data = {
       products,
       sales,
       settings,
-
       exportedAt:
         getNow(),
-
       version:
-        '2.0',
+        '3.0',
     };
 
     const jsonString =
@@ -1954,10 +2196,6 @@ export const AppProvider: React.FC<{
 
     downloadAnchor.remove();
   };
-
-  /* =======================================================
-     IMPORTAR RESPALDO
-  ======================================================= */
 
   const importBackup = (
     jsonData: string
@@ -1996,8 +2234,6 @@ export const AppProvider: React.FC<{
         );
       }
 
-      triggerCloudSync();
-
       return true;
     } catch (error) {
       console.error(
@@ -2008,10 +2244,6 @@ export const AppProvider: React.FC<{
       return false;
     }
   };
-
-  /* =======================================================
-     RESTABLECER DATOS DEMO
-  ======================================================= */
 
   const resetDemoData = () => {
     setProducts(
@@ -2028,12 +2260,10 @@ export const AppProvider: React.FC<{
 
     setCart([]);
 
-    triggerCloudSync();
+    setCloudSyncStatus(
+      'offline'
+    );
   };
-
-  /* =======================================================
-     PROVIDER
-  ======================================================= */
 
   return (
     <AppContext.Provider
@@ -2085,10 +2315,6 @@ export const AppProvider: React.FC<{
     </AppContext.Provider>
   );
 };
-
-/* =========================================================
-   HOOK
-========================================================= */
 
 export const useApp = () => {
   const context =
