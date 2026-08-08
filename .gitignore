@@ -8,3 +8,5 @@ coverage/
 !.env.example
 release/
 *.exe
+.env.local
+.env.*.local

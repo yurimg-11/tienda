@@ -396,6 +396,8 @@ export const InventoryView: React.FC = () => {
             } else {
               addProduct(data);
             }
+            setShowFormModal(false);
+            setEditingProduct(null);
           }}
         />
       )}
