@@ -169,7 +169,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setProducts(prev =>
       prev.map(p => {
         if (p.id === id) {
-          const newStock = Math.max(0, Number((p.stock + amountToAdd).toFixed(3)));
+          const newStock = Math.max(0, Number(((p?.stock || 0) + amountToAdd).toFixed(3)));
           return { ...p, stock: newStock, updatedAt: new Date().toISOString() };
         }
         return p;
@@ -181,22 +181,22 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   // Cart operations
   const addToCart = (product: Product, quantity: number = 1) => {
     setCart(prevCart => {
-      const existingIndex = prevCart.findIndex(item => item.product.id === product.id);
+      const existingIndex = prevCart.findIndex(item => item?.product?.id === product?.id);
       if (existingIndex > -1) {
         const updated = [...prevCart];
         const existing = updated[existingIndex];
-        const newQty = Number((existing.quantity + quantity).toFixed(3));
-        const total = Number((newQty * existing.unitPrice - existing.discount).toFixed(2));
+        const newQty = Number(((existing?.quantity || 0) + quantity).toFixed(3));
+        const total = Number((newQty * (existing?.unitPrice || 0) - (existing?.discount || 0)).toFixed(2));
         updated[existingIndex] = { ...existing, quantity: newQty, total };
         return updated;
       } else {
-        const total = Number((quantity * product.sellingPrice).toFixed(2));
+        const total = Number((quantity * (product?.sellingPrice || 0)).toFixed(2));
         return [
           ...prevCart,
           {
             product,
             quantity,
-            unitPrice: product.sellingPrice,
+            unitPrice: product?.sellingPrice || 0,
             discount: 0,
             total,
           },
@@ -212,8 +212,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
     setCart(prev =>
       prev.map(item => {
-        if (item.product.id === productId) {
-          const total = Number((quantity * item.unitPrice - item.discount).toFixed(2));
+        if (item?.product?.id === productId) {
+          const total = Number((quantity * (item?.unitPrice || 0) - (item?.discount || 0)).toFixed(2));
           return { ...item, quantity, total };
         }
         return item;
@@ -224,8 +224,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const updateCartDiscount = (productId: string, discount: number) => {
     setCart(prev =>
       prev.map(item => {
-        if (item.product.id === productId) {
-          const total = Number((item.quantity * item.unitPrice - discount).toFixed(2));
+        if (item?.product?.id === productId) {
+          const total = Number(((item?.quantity || 0) * (item?.unitPrice || 0) - discount).toFixed(2));
           return { ...item, discount, total };
         }
         return item;
@@ -234,7 +234,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const removeFromCart = (productId: string) => {
-    setCart(prev => prev.filter(item => item.product.id !== productId));
+    setCart(prev => prev.filter(item => item?.product?.id !== productId));
   };
 
   const clearCart = () => {
@@ -256,20 +256,25 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     let costTotal = 0;
 
     const saleItems: SaleItem[] = cart.map(item => {
-      subtotal += item.quantity * item.unitPrice;
-      discountTotal += item.discount;
-      costTotal += item.quantity * item.product.purchasePrice;
+      const qty = item?.quantity || 0;
+      const uPrice = item?.unitPrice || 0;
+      const disc = item?.discount || 0;
+      const prod = item?.product || {};
+
+      subtotal += qty * uPrice;
+      discountTotal += disc;
+      costTotal += qty * (prod?.purchasePrice || 0);
 
       return {
-        productId: item.product.id,
-        productName: item.product.name,
-        category: item.product.category,
-        quantity: item.quantity,
-        unit: item.product.unit,
-        purchasePrice: item.product.purchasePrice,
-        sellingPrice: item.unitPrice,
-        discount: item.discount,
-        total: item.total,
+        productId: prod?.id || 'unknown',
+        productName: prod?.name || 'Producto sin nombre',
+        category: prod?.category || 'otros',
+        quantity: qty,
+        unit: prod?.unit || 'pieza',
+        purchasePrice: prod?.purchasePrice || 0,
+        sellingPrice: uPrice,
+        discount: disc,
+        total: item?.total || 0,
       };
     });
 
@@ -304,9 +309,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     // Deduct stock for sold items
     setProducts(prevProducts =>
       prevProducts.map(prod => {
-        const cartMatch = cart.find(c => c.product.id === prod.id);
+        const cartMatch = cart.find(c => c?.product?.id === prod?.id);
         if (cartMatch) {
-          const updatedStock = Math.max(0, Number((prod.stock - cartMatch.quantity).toFixed(3)));
+          const updatedStock = Math.max(0, Number(((prod?.stock || 0) - (cartMatch?.quantity || 0)).toFixed(3)));
           return { ...prod, stock: updatedStock, updatedAt: new Date().toISOString() };
         }
         return prod;
@@ -345,13 +350,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const importBackup = (jsonData: string): boolean => {
     try {
       const parsed = JSON.parse(jsonData);
-      if (parsed.products && Array.isArray(parsed.products)) {
+      if (parsed?.products && Array.isArray(parsed.products)) {
         setProducts(parsed.products);
       }
-      if (parsed.sales && Array.isArray(parsed.sales)) {
+      if (parsed?.sales && Array.isArray(parsed.sales)) {
         setSales(parsed.sales);
       }
-      if (parsed.settings) {
+      if (parsed?.settings) {
         setSettings(parsed.settings);
       }
       triggerCloudSync();
