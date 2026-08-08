@@ -203,7 +203,7 @@ export const POSView: React.FC = () => {
             title="Refrescar catálogo desde la base de datos"
           >
             <RefreshCw className="w-4 h-4 text-emerald-400" />
-            <span className="hidden sm:inline">Actualizar Precios</span>
+            <span className="hidden sm:inline">Actualizar</span>
           </button>
 
           <button
