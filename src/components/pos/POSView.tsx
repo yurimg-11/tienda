@@ -20,7 +20,7 @@ import {
 
 export const POSView: React.FC = () => {
   const appContext = useApp() as any;
- const {
+  const {
     products = [],
     cart = [],
     addToCart = () => {},
@@ -61,18 +61,18 @@ export const POSView: React.FC = () => {
   };
 
   const filteredProducts = products.filter((p: Product) => {
-    const matchesCategory = selectedCategory === 'todas' || p.category === selectedCategory;
+    const matchesCategory = selectedCategory === 'todas' || p?.category === selectedCategory;
     const q = searchQuery.toLowerCase().trim();
     const matchesSearch =
       !q ||
-      p.name.toLowerCase().includes(q) ||
-      p.barcode.includes(q) ||
-      p.category.toLowerCase().includes(q);
+      p?.name?.toLowerCase().includes(q) ||
+      p?.barcode?.includes(q) ||
+      p?.category?.toLowerCase().includes(q);
     return matchesCategory && matchesSearch;
   });
 
-  const subtotal = cart.reduce((acc: number, item: CartItem) => acc + item.quantity * item.unitPrice, 0);
-  const discounts = cart.reduce((acc: number, item: CartItem) => acc + item.discount, 0);
+  const subtotal = cart.reduce((acc: number, item: CartItem) => acc + (item?.quantity || 0) * (item?.unitPrice || 0), 0);
+  const discounts = cart.reduce((acc: number, item: CartItem) => acc + (item?.discount || 0), 0);
   const total = subtotal - discounts;
 
   const formatCurrency = (val: number) =>
@@ -82,7 +82,7 @@ export const POSView: React.FC = () => {
     if (!weightedProduct) return 1;
     if (weightMode === 'money') {
       const money = parseFloat(moneyValue) || 0;
-      if (weightedProduct.sellingPrice <= 0) return 0;
+      if (weightedProduct?.sellingPrice <= 0) return 0;
       return Number((money / weightedProduct.sellingPrice).toFixed(3));
     } else {
       const val = parseFloat(weightValue) || 0;
@@ -95,9 +95,10 @@ export const POSView: React.FC = () => {
   };
 
   const handleProductClick = (product: Product) => {
-    if (product.stock <= 0) return;
+    if ((product?.stock || 0) <= 0) return;
 
-    if (product.unit === 'kg' || product.unit === 'g') {
+    const unit = product?.unit || 'pieza';
+    if (unit === 'kg' || unit === 'g') {
       setWeightedProduct(product);
       setWeightMode('money');
       setMoneyValue('20');
@@ -120,7 +121,7 @@ export const POSView: React.FC = () => {
     e.preventDefault();
     if (!searchQuery) return;
 
-    const matched = products.find((p: Product) => p.barcode === searchQuery.trim());
+    const matched = products.find((p: Product) => p?.barcode === searchQuery.trim());
     if (matched) {
       handleProductClick(matched);
       setSearchQuery('');
@@ -175,8 +176,8 @@ export const POSView: React.FC = () => {
                     : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-100'
                 }`}
               >
-                <span>{catMeta.icon}</span>
-                <span>{catMeta.name}</span>
+                <span>{catMeta?.icon}</span>
+                <span>{catMeta?.name}</span>
               </button>
             );
           })}
@@ -244,12 +245,13 @@ export const POSView: React.FC = () => {
           ) : (
             filteredProducts.map((product: Product) => {
               const expInfo = getExpirationStatus(product, settings?.expirationWarningDays || 7);
-              const isOutOfStock = product.stock <= 0;
-              const isLowStock = product.stock <= product.minStock && !isOutOfStock;
+              const isOutOfStock = (product?.stock || 0) <= 0;
+              const isLowStock = (product?.stock || 0) <= (product?.minStock || 0) && !isOutOfStock;
+              const unit = product?.unit || 'pieza';
 
               return (
                 <div
-                  key={product.id}
+                  key={product?.id}
                   onClick={() => handleProductClick(product)}
                   className={`relative group bg-white rounded-2xl p-2.5 border transition-all cursor-pointer flex flex-col justify-between hover:shadow-md ${
                     isOutOfStock
@@ -259,35 +261,35 @@ export const POSView: React.FC = () => {
                 >
                   <div className="flex items-center justify-between gap-1 mb-1.5">
                     <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 uppercase">
-                      {CATEGORY_LABELS[product.category]?.icon || '📦'} {product.unit}
+                      {CATEGORY_LABELS[product?.category]?.icon || '📦'} {unit}
                     </span>
 
-                    {expInfo.status === 'expired' || expInfo.status === 'critical' ? (
-                      <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded border ${expInfo.badgeBg}`}>
-                        {expInfo.daysRemaining === 0 ? 'Hoy' : `${expInfo.daysRemaining}d`}
+                    {expInfo?.status === 'expired' || expInfo?.status === 'critical' ? (
+                      <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded border ${expInfo?.badgeBg}`}>
+                        {expInfo?.daysRemaining === 0 ? 'Hoy' : `${expInfo?.daysRemaining}d`}
                       </span>
                     ) : null}
                   </div>
 
                   <div className="flex items-center gap-2 mb-2">
-                    {product.imageUrl ? (
+                    {product?.imageUrl ? (
                       <img
                         src={product.imageUrl}
-                        alt={product.name}
+                        alt={product?.name || 'Producto'}
                         className="w-12 h-12 object-cover rounded-xl border border-slate-100 flex-shrink-0"
                       />
                     ) : (
                       <div className="w-12 h-12 bg-emerald-50 text-emerald-700 font-bold rounded-xl flex items-center justify-center text-lg flex-shrink-0">
-                        {product.name.charAt(0)}
+                        {product?.name?.charAt(0) || '?'}
                       </div>
                     )}
 
                     <div className="min-w-0">
                       <h3 className="font-semibold text-xs text-slate-900 line-clamp-2 leading-snug">
-                        {product.name}
+                        {product?.name}
                       </h3>
                       <p className="text-[11px] text-slate-500 font-medium">
-                        Stock: <span className={isLowStock ? 'text-amber-600 font-bold' : ''}>{product.stock}</span>
+                        Stock: <span className={isLowStock ? 'text-amber-600 font-bold' : ''}>{product?.stock}</span>
                       </p>
                     </div>
                   </div>
@@ -296,9 +298,9 @@ export const POSView: React.FC = () => {
                     <div>
                       <span className="text-xs text-slate-400 font-medium leading-none">$</span>
                       <span className="text-sm font-black text-slate-900">
-                        {product.sellingPrice.toFixed(2)}
+                        {(product?.sellingPrice || 0).toFixed(2)}
                       </span>
-                      <span className="text-[10px] text-slate-500">/{product.unit}</span>
+                      <span className="text-[10px] text-slate-500">/{unit}</span>
                     </div>
 
                     <button
@@ -351,66 +353,72 @@ export const POSView: React.FC = () => {
               <p className="text-xs text-slate-400">Toca un producto para agregar al carrito</p>
             </div>
           ) : (
-            cart.map((item: CartItem) => (
-              <div key={item.product.id} className="pt-2 first:pt-0 flex items-center justify-between gap-2">
-                <div className="flex-1 min-w-0">
-                  <h4 className="text-xs font-semibold text-slate-800 truncate">{item.product.name}</h4>
-                  <div className="text-[11px] text-slate-500">
-                    {item.quantity} {item.product.unit} × {formatCurrency(item.unitPrice)}
+            cart.map((item: CartItem) => {
+              const itemUnit = item?.product?.unit || 'pieza';
+              const itemName = item?.product?.name || 'Artículo';
+              const itemId = item?.product?.id;
+
+              return (
+                <div key={itemId} className="pt-2 first:pt-0 flex items-center justify-between gap-2">
+                  <div className="flex-1 min-w-0">
+                    <h4 className="text-xs font-semibold text-slate-800 truncate">{itemName}</h4>
+                    <div className="text-[11px] text-slate-500">
+                      {item?.quantity} {itemUnit} × {formatCurrency(item?.unitPrice || 0)}
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-lg border border-slate-200">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const step = (itemUnit === 'kg' || itemUnit === 'g') ? 0.1 : 1;
+                        const nextQty = Math.max(0.01, Number(((item?.quantity || 0) - step).toFixed(3)));
+                        if (itemId) updateCartQuantity(itemId, nextQty);
+                      }}
+                      className="w-6 h-6 bg-white text-slate-700 rounded-md flex items-center justify-center text-xs font-bold hover:bg-slate-200 cursor-pointer shadow-2xs"
+                    >
+                      -
+                    </button>
+                    
+                    <input
+                      type="number"
+                      step={itemUnit === 'kg' ? '0.05' : '1'}
+                      value={item?.quantity || 1}
+                      onChange={e => {
+                        const val = parseFloat(e.target.value);
+                        if (!isNaN(val) && val > 0 && itemId) {
+                          updateCartQuantity(itemId, Number(val.toFixed(3)));
+                        }
+                      }}
+                      className="w-12 text-center text-xs font-extrabold text-slate-900 bg-white border border-slate-200 rounded py-0.5 focus:outline-none focus:border-emerald-500"
+                    />
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const step = (itemUnit === 'kg' || itemUnit === 'g') ? 0.1 : 1;
+                        const nextQty = Number(((item?.quantity || 0) + step).toFixed(3));
+                        if (itemId) updateCartQuantity(itemId, nextQty);
+                      }}
+                      className="w-6 h-6 bg-white text-slate-700 rounded-md flex items-center justify-center text-xs font-bold hover:bg-slate-200 cursor-pointer shadow-2xs"
+                    >
+                      +
+                    </button>
+                  </div>
+
+                  <div className="text-right min-w-[60px]">
+                    <span className="text-xs font-bold text-slate-900">{formatCurrency(item?.total || 0)}</span>
+                    <button
+                      type="button"
+                      onClick={() => itemId && removeFromCart(itemId)}
+                      className="block text-[10px] text-slate-400 hover:text-red-500 ml-auto mt-0.5 cursor-pointer"
+                    >
+                      Eliminar
+                    </button>
                   </div>
                 </div>
-
-                <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-lg border border-slate-200">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const step = (item.product.unit === 'kg' || item.product.unit === 'g') ? 0.1 : 1;
-                      const nextQty = Math.max(0.01, Number((item.quantity - step).toFixed(3)));
-                      updateCartQuantity(item.product.id, nextQty);
-                    }}
-                    className="w-6 h-6 bg-white text-slate-700 rounded-md flex items-center justify-center text-xs font-bold hover:bg-slate-200 cursor-pointer shadow-2xs"
-                  >
-                    -
-                  </button>
-                  
-                  <input
-                    type="number"
-                    step={item.product.unit === 'kg' ? '0.05' : '1'}
-                    value={item.quantity}
-                    onChange={e => {
-                      const val = parseFloat(e.target.value);
-                      if (!isNaN(val) && val > 0) {
-                        updateCartQuantity(item.product.id, Number(val.toFixed(3)));
-                      }
-                    }}
-                    className="w-12 text-center text-xs font-extrabold text-slate-900 bg-white border border-slate-200 rounded py-0.5 focus:outline-none focus:border-emerald-500"
-                  />
-
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const step = (item.product.unit === 'kg' || item.product.unit === 'g') ? 0.1 : 1;
-                      const nextQty = Number((item.quantity + step).toFixed(3));
-                      updateCartQuantity(item.product.id, nextQty);
-                    }}
-                    className="w-6 h-6 bg-white text-slate-700 rounded-md flex items-center justify-center text-xs font-bold hover:bg-slate-200 cursor-pointer shadow-2xs"
-                  >
-                    +
-                  </button>
-                </div>
-
-                <div className="text-right min-w-[60px]">
-                  <span className="text-xs font-bold text-slate-900">{formatCurrency(item.total)}</span>
-                  <button
-                    type="button"
-                    onClick={() => removeFromCart(item.product.id)}
-                    className="block text-[10px] text-slate-400 hover:text-red-500 ml-auto mt-0.5 cursor-pointer"
-                  >
-                    Eliminar
-                  </button>
-                </div>
-              </div>
-            ))
+              );
+            })
           )}
         </div>
 
@@ -463,9 +471,9 @@ export const POSView: React.FC = () => {
                   <Scale className="w-5 h-5" />
                 </div>
                 <div>
-                  <h3 className="font-bold text-slate-900 text-sm">{weightedProduct.name}</h3>
+                  <h3 className="font-bold text-slate-900 text-sm">{weightedProduct?.name}</h3>
                   <p className="text-xs text-slate-500">
-                    Precio: <span className="font-bold text-emerald-700">{formatCurrency(weightedProduct.sellingPrice)}</span> por {weightedProduct.unit}
+                    Precio: <span className="font-bold text-emerald-700">{formatCurrency(weightedProduct?.sellingPrice || 0)}</span> por {weightedProduct?.unit || 'pieza'}
                   </p>
                 </div>
               </div>
@@ -624,7 +632,7 @@ export const POSView: React.FC = () => {
             {(() => {
               const finalKg = calculateFinalWeightInKg();
               const finalGrams = Math.round(finalKg * 1000);
-              const itemTotal = Number((finalKg * weightedProduct.sellingPrice).toFixed(2));
+              const itemTotal = Number((finalKg * (weightedProduct?.sellingPrice || 0)).toFixed(2));
 
               return (
                 <div className="bg-slate-900 text-white rounded-2xl p-3.5 space-y-1.5 shadow-sm">
@@ -720,40 +728,80 @@ export const POSView: React.FC = () => {
                   onChange={e => setCashRendered(e.target.value)}
                   placeholder="0.00"
                   autoFocus
-                  className="w-full text-center text-2xl font-black text-slate-900 bg-white border border-slate-300 rounded-xl py-2 focus:outline-none focus:border-emerald-500"
+                  className="w-full text-center text-2xl font-black text-slate-900 border border-slate-300 rounded-xl py-2 bg-white focus:outline-none focus:border-emerald-500"
                 />
-
-                <div className="flex justify-between items-center text-xs font-bold pt-1">
-                  <span className="text-slate-600">Cambio a Devolver:</span>
-                  <span className={`text-sm ${changeAmount > 0 ? 'text-emerald-600 font-black' : 'text-slate-800'}`}>
+                
+                <div className="flex justify-between items-center text-xs pt-1 font-semibold text-slate-700">
+                  <span>Cambio a Devolver:</span>
+                  <span className={`text-sm font-black ${changeAmount < 0 ? 'text-red-500' : 'text-emerald-600'}`}>
                     {formatCurrency(changeAmount)}
                   </span>
                 </div>
               </div>
             )}
 
-            <button
-              type="button"
-              onClick={handleFinishSale}
-              className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-black text-sm rounded-2xl shadow-md cursor-pointer transition-colors"
-            >
-              FINALIZAR VENTA
-            </button>
+            {/* Datos del Cliente opcionales */}
+            <div className="space-y-2">
+              <label className="block text-xs font-bold text-slate-700">Datos del Cliente (Opcional):</label>
+              <input
+                type="text"
+                value={customerName}
+                onChange={e => setCustomerName(e.target.value)}
+                placeholder="Nombre del cliente"
+                className="w-full text-xs border border-slate-300 rounded-xl py-2 px-3 focus:outline-none focus:border-emerald-500"
+              />
+              <input
+                type="email"
+                value={customerEmail}
+                onChange={e => setCustomerEmail(e.target.value)}
+                placeholder="Correo electrónico para ticket digital"
+                className="w-full text-xs border border-slate-300 rounded-xl py-2 px-3 focus:outline-none focus:border-emerald-500"
+              />
+            </div>
+
+            <div className="flex gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setShowCheckoutModal(false)}
+                className="flex-1 py-3 text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl cursor-pointer"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={handleFinishSale}
+                className="flex-2 py-3 text-xs font-black bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl shadow-md cursor-pointer transition-colors"
+              >
+                CONFIRMAR Y FINALIZAR
+              </button>
+            </div>
+
           </div>
         </div>
       )}
 
-      {/* MODAL DEL TICKET */}
+      {/* MODAL DEL TICKET FINALIZADO */}
       {showTicketModal && completedSale && (
-        <TicketModal sale={completedSale} onClose={() => setShowTicketModal(false)} autoPrint={true} />
+        <TicketModal
+          sale={completedSale}
+          onClose={() => {
+            setShowTicketModal(false);
+            setCompletedSale(null);
+          }}
+        />
       )}
 
-      {/* MODAL DE CÁMARA REAL */}
+      {/* MODAL DE CÁMARA PARA CÓDIGO DE BARRAS */}
       {showCameraScanner && (
         <CameraScannerModal
           products={products}
-          onProductScanned={(prod: Product) => {
+          onProductScanned={(prod) => {
             handleProductClick(prod);
+            setShowCameraScanner(false);
+          }}
+          onUnknownBarcode={(code) => {
+            setSearchQuery(code);
+            setShowCameraScanner(false);
           }}
           onClose={() => setShowCameraScanner(false)}
         />
