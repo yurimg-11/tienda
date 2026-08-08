@@ -57,6 +57,8 @@ export interface SaleItem {
 }
 
 export interface Sale {
+  cashRendered: any;
+  changeAmount: number;
   id: string;
   ticketNumber: string;
   date: string;          // ISO string
