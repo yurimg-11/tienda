@@ -23,7 +23,7 @@ export const CameraScannerModal: React.FC<CameraScannerModalProps> = ({
   const lastScanTimeRef = useRef<number>(0);
   const isStoppingRef = useRef<boolean>(false);
 
-  // Reproducir todo de confirmación
+  // Reproducir sonido de confirmación
   const playBeep = () => {
     try {
       const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
@@ -66,9 +66,7 @@ export const CameraScannerModal: React.FC<CameraScannerModalProps> = ({
 
   // Cierre inmediato del modal
   const handleClose = () => {
-    // Cerramos la modal de inmediato en UI para evitar congelamientos
     onClose();
-    // Apagamos la cámara en segundo plano
     safeStopScanner();
   };
 
@@ -113,18 +111,23 @@ export const CameraScannerModal: React.FC<CameraScannerModalProps> = ({
     let isMounted = true;
 
     const startScanner = async () => {
-      // Esperar a que el DOM monte la div 'camera-reader-element'
-      await new Promise(resolve => setTimeout(resolve, 200));
+      // Retraso controlado para evitar bloqueos en el renderizado móvil (iOS/Android)
+      await new Promise(resolve => setTimeout(resolve, 400));
       if (!isMounted) return;
 
       try {
         setCameraError('');
+        
+        // Validar existencia del contenedor en el DOM antes de iniciar
+        const container = document.getElementById('camera-reader-element');
+        if (!container) return;
+
         const html5Qrcode = new Html5Qrcode('camera-reader-element');
         scannerRef.current = html5Qrcode;
 
         const config = {
-          fps: 15,
-          qrbox: { width: 260, height: 160 },
+          fps: 10,
+          qrbox: { width: 250, height: 150 },
           aspectRatio: 1.333,
           formatsToSupport: [
             Html5QrcodeSupportedFormats.EAN_13,
@@ -143,9 +146,7 @@ export const CameraScannerModal: React.FC<CameraScannerModalProps> = ({
           (decodedText) => {
             if (isMounted) processBarcode(decodedText);
           },
-          () => {
-            // Cuadros sin código de barras son ignorados
-          }
+          () => {}
         );
       } catch (err: unknown) {
         if (!isMounted) return;
@@ -156,7 +157,7 @@ export const CameraScannerModal: React.FC<CameraScannerModalProps> = ({
         } else if (errStr.includes('NotFoundError') || errStr.includes('DevicesNotFoundError')) {
           setCameraError('No se encontró ninguna cámara física conectada en este dispositivo.');
         } else {
-          setCameraError('No se pudo acceder a la cámara. Puedes ingresar el código manualmente o probar la simulación.');
+          setCameraError('No se pudo acceder a la cámara. Puedes usar la simulación rápida de abajo.');
         }
       }
     };
