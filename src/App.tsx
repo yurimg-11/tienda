@@ -76,7 +76,7 @@ const MainContent: React.FC = () => {
         {/* Mobile Navigation Drawer Overlay */}
         {mobileNavOpen && (
           <div className="fixed inset-0 z-50 md:hidden bg-slate-900/60 backdrop-blur-xs flex">
-            <div className="w-72 bg-white h-full shadow-2xl">
+            <div className="w-72 bg-white h-full shadow-2xl overflow-y-auto overscroll-contain">
               <div className="p-3 border-b border-slate-100 flex justify-between items-center bg-slate-900 text-white">
                 <span className="font-bold text-xs uppercase tracking-wider">Menú Principal</span>
                 <button
