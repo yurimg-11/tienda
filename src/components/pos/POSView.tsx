@@ -4,7 +4,8 @@ import { Product, CartItem, PaymentMethod, Sale } from '../../types';
 import { CATEGORY_LABELS } from '../../data/initialData';
 import { getExpirationStatus } from '../../utils/inventoryUtils';
 import { TicketModal } from '../tickets/TicketModal';
-import { CameraScannerModal } from './CameraScannerModal';import {
+import { CameraScannerModal } from './CameraScannerModal';
+import {
   ShoppingCart,
   Plus,
   Trash2,
