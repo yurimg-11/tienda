@@ -100,6 +100,8 @@ export const generateInitialSales = (): Sale[] => {
         paymentMethod: pMethod,
         amountPaid,
         changeGiven: Number((amountPaid - subtotal).toFixed(2)),
+        cashRendered: amountPaid,
+        changeAmount: Number((amountPaid - subtotal).toFixed(2)),
       });
     }
   }

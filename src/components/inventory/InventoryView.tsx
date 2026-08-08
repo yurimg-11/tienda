@@ -371,21 +371,22 @@ export const InventoryView: React.FC = () => {
 
       {/* ADD/EDIT MODAL */}
       {showFormModal && (
-        <ProductFormModal
-          product={editingProduct}
-          onClose={() => {
-            setShowFormModal(false);
-            setEditingProduct(null);
-          }}
-          onSave={data => {
-            if (editingProduct) {
-              updateProduct(editingProduct.id, data);
-            } else {
-              addProduct(data);
-            }
-          }}
-        />
-      )}
+  <ProductFormModal
+    products={products}          // ✅ Correcto (requerido por la interfaz)
+    productToEdit={editingProduct} // ✅ Correcto (para saber si se edita o crea)
+    onClose={() => {
+      setShowFormModal(false);
+      setEditingProduct(null);
+    }}
+    onSave={data => {
+      if (editingProduct) {
+        updateProduct(editingProduct.id, data);
+      } else {
+        addProduct(data);
+      }
+    }}
+  />
+)}
 
       {/* QUICK STOCK RE-STOCK MODAL */}
       {stockAdjustProduct && (
