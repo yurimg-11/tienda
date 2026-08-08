@@ -75,7 +75,14 @@ export interface Sale {
   customerEmail?: string;
   customerName?: string;
   notes?: string;
-}
+
+ //cancelación de venta
+ cancelled?: boolean,
+ cancelledAt?: string,
+ cancelledBy?: string,
+ cancellationReason?: string;
+ }
+
 
 export interface StoreSettings {
   storeName: string;
