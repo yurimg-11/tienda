@@ -23,7 +23,6 @@ export const CameraScannerModal: React.FC<CameraScannerModalProps> = ({
   const lastScanTimeRef = useRef<number>(0);
   const isStoppingRef = useRef<boolean>(false);
 
-  // Reproducir sonido de confirmación
   const playBeep = () => {
     try {
       const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
@@ -44,7 +43,6 @@ export const CameraScannerModal: React.FC<CameraScannerModalProps> = ({
     }
   };
 
-  // Función asíncrona para apagar la cámara de forma segura
   const safeStopScanner = async () => {
     if (isStoppingRef.current) return;
     isStoppingRef.current = true;
@@ -64,7 +62,6 @@ export const CameraScannerModal: React.FC<CameraScannerModalProps> = ({
     }
   };
 
-  // Cierre inmediato del modal
   const handleClose = () => {
     onClose();
     safeStopScanner();
@@ -83,42 +80,28 @@ export const CameraScannerModal: React.FC<CameraScannerModalProps> = ({
     const matched = products.find(p => p.barcode === code.trim());
     if (matched) {
       if (matched.stock <= 0) {
-        setScanMessage({
-          type: 'error',
-          text: `⚠️ "${matched.name}" está AGOTADO.`
-        });
+        setScanMessage({ type: 'error', text: `⚠️ "${matched.name}" está AGOTADO.` });
       } else {
         onProductScanned(matched);
-        setScanMessage({
-          type: 'success',
-          text: `✓ Agregado: ${matched.name}`
-        });
+        setScanMessage({ type: 'success', text: `✓ Agregado: ${matched.name}` });
       }
     } else {
       if (onUnknownBarcode) onUnknownBarcode(code);
-      setScanMessage({
-        type: 'error',
-        text: `Código "${code}" no registrado en el inventario.`
-      });
+      setScanMessage({ type: 'info', text: `Código detectado: ${code}` });
     }
 
-    setTimeout(() => {
-      setScanMessage(null);
-    }, 3000);
+    setTimeout(() => { setScanMessage(null); }, 3000);
   };
 
   useEffect(() => {
     let isMounted = true;
 
     const startScanner = async () => {
-      // Retraso controlado para evitar bloqueos en el renderizado móvil (iOS/Android)
-      await new Promise(resolve => setTimeout(resolve, 400));
+      await new Promise(resolve => setTimeout(resolve, 500));
       if (!isMounted) return;
 
       try {
         setCameraError('');
-        
-        // Validar existencia del contenedor en el DOM antes de iniciar
         const container = document.getElementById('camera-reader-element');
         if (!container) return;
 
@@ -143,22 +126,13 @@ export const CameraScannerModal: React.FC<CameraScannerModalProps> = ({
         await html5Qrcode.start(
           { facingMode: 'environment' },
           config,
-          (decodedText) => {
-            if (isMounted) processBarcode(decodedText);
-          },
+          (decodedText) => { if (isMounted) processBarcode(decodedText); },
           () => {}
         );
       } catch (err: unknown) {
         if (!isMounted) return;
         console.error('Camera scanner init error:', err);
-        const errStr = String(err);
-        if (errStr.includes('NotAllowedError') || errStr.includes('Permission')) {
-          setCameraError('Permiso de cámara denegado. Permite el acceso a la cámara en la barra de direcciones de tu navegador.');
-        } else if (errStr.includes('NotFoundError') || errStr.includes('DevicesNotFoundError')) {
-          setCameraError('No se encontró ninguna cámara física conectada en este dispositivo.');
-        } else {
-          setCameraError('No se pudo acceder a la cámara. Puedes usar la simulación rápida de abajo.');
-        }
+        setCameraError('No se pudo acceder a la cámara. Revisa los permisos o usa los botones rápidos.');
       }
     };
 
@@ -174,7 +148,6 @@ export const CameraScannerModal: React.FC<CameraScannerModalProps> = ({
     <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-3 sm:p-4">
       <div className="bg-white rounded-3xl max-w-lg w-full overflow-hidden shadow-2xl border border-slate-100 relative flex flex-col max-h-[92vh]">
         
-        {/* Header */}
         <div className="bg-slate-900 text-white p-4 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
             <div className="p-2 bg-emerald-500/20 text-emerald-400 rounded-xl">
@@ -183,56 +156,36 @@ export const CameraScannerModal: React.FC<CameraScannerModalProps> = ({
             <div>
               <h3 className="font-black text-sm text-white flex items-center gap-1.5">
                 Escáner de Código de Barras
-                <span className="text-[10px] bg-emerald-500 text-slate-950 px-2 py-0.5 rounded-full font-extrabold uppercase">
-                  Cámara En Vivo
-                </span>
+                <span className="text-[10px] bg-emerald-500 text-slate-950 px-2 py-0.5 rounded-full font-extrabold uppercase">Cámara En Vivo</span>
               </h3>
               <p className="text-[11px] text-slate-400">Apunta la cámara al código del producto</p>
             </div>
           </div>
-          <button
-            type="button"
-            onClick={handleClose}
-            className="text-slate-400 hover:text-white p-1.5 rounded-xl hover:bg-slate-800 transition-colors cursor-pointer"
-            title="Cerrar ventana"
-          >
+          <button type="button" onClick={handleClose} className="text-slate-400 hover:text-white p-1.5 rounded-xl hover:bg-slate-800 transition-colors cursor-pointer">
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        {/* Live Feedback Banner */}
         {scanMessage && (
-          <div
-            className={`p-3 text-xs font-bold text-center flex items-center justify-center gap-2 transition-all ${
-              scanMessage.type === 'success'
-                ? 'bg-emerald-600 text-white'
-                : 'bg-rose-600 text-white'
-            }`}
-          >
+          <div className={`p-3 text-xs font-bold text-center text-white ${scanMessage.type === 'success' ? 'bg-emerald-600' : scanMessage.type === 'error' ? 'bg-rose-600' : 'bg-sky-600'}`}>
             {scanMessage.text}
           </div>
         )}
 
-        {/* Camera View Area */}
         <div className="relative bg-slate-950 flex-1 flex flex-col items-center justify-center min-h-[260px]">
           {cameraError ? (
             <div className="p-6 text-center text-slate-300 space-y-3 max-w-sm">
               <AlertCircle className="w-10 h-10 text-amber-400 mx-auto" />
               <p className="text-xs font-semibold leading-relaxed">{cameraError}</p>
-              <p className="text-[11px] text-slate-400">
-                Puedes seleccionar los productos manualmente en la lista rápida de abajo.
-              </p>
             </div>
           ) : (
             <div className="w-full relative flex items-center justify-center overflow-hidden min-h-[240px]">
               <div id="camera-reader-element" className="w-full max-w-md rounded-xl overflow-hidden [&_video]:rounded-2xl"></div>
-              
-              {/* Laser Scanning Line Animation */}
               <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
                 <div className="w-64 h-36 border-2 border-emerald-400/80 rounded-2xl relative flex items-center justify-center">
                   <div className="w-full h-0.5 bg-rose-500 shadow-[0_0_8px_#f43f5e] animate-pulse"></div>
                   <span className="absolute bottom-2 text-[10px] font-bold text-emerald-300 bg-slate-900/80 px-2 py-0.5 rounded-md">
-                    Alinear código de barras aquí
+                    Alinear código aquí
                   </span>
                 </div>
               </div>
@@ -240,16 +193,13 @@ export const CameraScannerModal: React.FC<CameraScannerModalProps> = ({
           )}
         </div>
 
-        {/* SIMULATED SCANNER QUICK BUTTONS */}
         <div className="p-4 bg-slate-50 border-t border-slate-200 space-y-2">
           <div className="flex items-center justify-between text-xs font-bold text-slate-700">
             <span className="flex items-center gap-1">
               <Barcode className="w-4 h-4 text-emerald-600" />
-              Simular escaneo manual (Prueba rápida):
+              Selección rápida de prueba:
             </span>
-            <span className="text-[10px] text-slate-500">Haz clic para probar</span>
           </div>
-          
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5 max-h-32 overflow-y-auto pr-1">
             {products.slice(0, 6).map(p => (
               <button
@@ -258,9 +208,7 @@ export const CameraScannerModal: React.FC<CameraScannerModalProps> = ({
                 onClick={() => processBarcode(p.barcode)}
                 className="p-2 text-left bg-white hover:bg-emerald-50 border border-slate-200 hover:border-emerald-300 rounded-xl transition-all cursor-pointer shadow-2xs group"
               >
-                <div className="font-bold text-[11px] text-slate-900 truncate group-hover:text-emerald-700">
-                  {p.name}
-                </div>
+                <div className="font-bold text-[11px] text-slate-900 truncate group-hover:text-emerald-700">{p.name}</div>
                 <div className="text-[10px] font-mono text-slate-500 flex justify-between">
                   <span>{p.barcode}</span>
                   <span className="font-bold text-emerald-600">${p.sellingPrice.toFixed(2)}</span>
@@ -268,16 +216,9 @@ export const CameraScannerModal: React.FC<CameraScannerModalProps> = ({
               </button>
             ))}
           </div>
-
-          <div className="flex items-center justify-between pt-2 border-t border-slate-200">
-            <button
-              type="button"
-              onClick={handleClose}
-              className="w-full py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs rounded-xl transition-colors cursor-pointer"
-            >
-              Finalizar / Cerrar Cámara
-            </button>
-          </div>
+          <button type="button" onClick={handleClose} className="w-full py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs rounded-xl transition-colors cursor-pointer mt-2">
+            Cerrar Cámara
+          </button>
         </div>
 
       </div>

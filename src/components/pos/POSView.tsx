@@ -20,22 +20,22 @@ import {
 
 export const POSView: React.FC = () => {
   const appContext = useApp() as any;
-  const {
-    products,
-    cart,
-    addToCart,
-    updateCartQuantity,
-    removeFromCart,
-    clearCart,
-    completeSale,
-    searchQuery,
-    setSearchQuery,
-    selectedCategory,
-    setSelectedCategory,
-    settings,
+ const {
+    products = [],
+    cart = [],
+    addToCart = () => {},
+    updateCartQuantity = () => {},
+    removeFromCart = () => {},
+    clearCart = () => {},
+    completeSale = () => {},
+    searchQuery = '',
+    setSearchQuery = () => {},
+    selectedCategory = 'todas',
+    setSelectedCategory = () => {},
+    settings = {},
     refreshProducts
-  } = appContext;
-
+  } = appContext || {};
+  
   const [weightedProduct, setWeightedProduct] = useState<Product | null>(null);
   const [weightMode, setWeightMode] = useState<'weight' | 'money'>('money');
   const [weightUnit, setWeightUnit] = useState<'g' | 'kg'>('g');
