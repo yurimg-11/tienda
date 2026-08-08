@@ -193,7 +193,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       if (!mounted) return;
 
       if (error) {
-        console.error('❌ Error cargando productos desde Supabase:', error);
+        console.error('Error cargando productos desde Supabase:', error);
         setCloudSyncStatus('offline');
         return;
       }
@@ -226,7 +226,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           .select();
 
         if (migrationError) {
-          console.error('❌ Error migrando productos locales a Supabase:', migrationError);
+          console.error(' Error migrando productos locales a Supabase:', migrationError);
           setProducts(localProducts);
           setCloudSyncStatus('error');
           return;
@@ -294,9 +294,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       )
       .subscribe(status => {
         if (status === 'SUBSCRIBED') {
-          console.log('✅ Supabase Realtime conectado para products');
+          console.log(' Supabase Realtime conectado para products');
         } else if (status === 'CHANNEL_ERROR') {
-          console.error('❌ Error conectando Supabase Realtime');
+          console.error(' Error conectando Supabase Realtime');
           setCloudSyncStatus('error');
         }
       });
@@ -348,7 +348,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   if (error) {
     console.error(
-      '❌ Error guardando producto en Supabase:',
+      ' Error guardando producto en Supabase:',
       error
     );
 
@@ -357,7 +357,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   }
 
   console.log(
-    '✅ Producto guardado en Supabase:',
+    ' Producto guardado en Supabase:',
     data
   );
 
@@ -417,7 +417,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       .single();
 
     if (error) {
-      console.error('❌ Error actualizando producto en Supabase:', error);
+      console.error(' Error actualizando producto en Supabase:', error);
       setCloudSyncStatus('error');
       return;
     }
@@ -443,29 +443,33 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     );
   };
 
-  const deleteProduct = async (id: string) => {
-    setCloudSyncStatus('syncing');
+const deleteProduct = async (id: string) => {
+  setCloudSyncStatus('syncing');
 
-    const { error } = await supabase
-      .from('products')
-      .delete()
-      .eq('id', id);
+  const { error } = await supabase
+    .from('products')
+    .delete()
+    .eq('id', id);
 
-    if (error) {
-      console.error('❌ Error eliminando producto en Supabase:', error);
-      setCloudSyncStatus('error');
-      return;
-    }
+  if (error) {
+    console.error(' Error eliminando producto de Supabase:', error);
+    setCloudSyncStatus('error');
+    return;
+  }
 
-    setProducts(prev => prev.filter(prod => prod.id !== id));
-    setCloudSyncStatus('synced');
-    setLastSyncedAt(
-      new Date().toLocaleTimeString([], {
-        hour: '2-digit',
-        minute: '2-digit',
-      })
-    );
-  };
+  setProducts(prev => prev.filter(p => p.id !== id));
+
+  setCloudSyncStatus('synced');
+
+  setLastSyncedAt(
+    new Date().toLocaleTimeString([], {
+      hour: '2-digit',
+      minute: '2-digit',
+    })
+  );
+
+  console.log(' Producto eliminado de Supabase:', id);
+};
 
   const adjustStock = async (id: string, amountToAdd: number) => {
     const product = products.find(prod => prod.id === id);
@@ -486,7 +490,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       .single();
 
     if (error) {
-      console.error('❌ Error ajustando stock en Supabase:', error);
+      console.error(' Error ajustando stock en Supabase:', error);
       setCloudSyncStatus('error');
       return;
     }
