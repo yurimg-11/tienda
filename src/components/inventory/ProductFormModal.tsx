@@ -21,8 +21,8 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
   const [category, setCategory] = useState<ProductCategory>(productToEdit?.category || 'abarrotes');
   const [unit, setUnit] = useState<ProductUnit>(productToEdit?.unit || 'pieza');
   const [barcode, setBarcode] = useState<string>(productToEdit?.barcode || '');
-  const [costPrice, setCostPrice] = useState<string>('0');
-  const [sellingPrice, setSellingPrice] = useState<string>('0');
+  const [costPrice, setCostPrice] = useState<string>(productToEdit?.purchasePrice?.toString() || '0');
+  const [sellingPrice, setSellingPrice] = useState<string>(productToEdit?.sellingPrice?.toString() || '0');
   const [stock, setStock] = useState<string>(productToEdit?.stock?.toString() || '10');
   const [minStock, setMinStock] = useState<string>(productToEdit?.minStock?.toString() || '2');
   const [expirationDate, setExpirationDate] = useState<string>(productToEdit?.expirationDate || '');
@@ -44,7 +44,7 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
       category,
       unit,
       barcode: barcode.trim() || generateRandomBarcodeValue(),
-      costPrice: parseFloat(costPrice) || 0,
+      purchasePrice: parseFloat(costPrice) || 0,
       sellingPrice: parseFloat(sellingPrice) || 0,
       stock: parseFloat(stock) || 0,
       minStock: parseFloat(minStock) || 0,
